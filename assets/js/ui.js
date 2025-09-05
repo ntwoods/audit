@@ -35,7 +35,15 @@ function createCard(audit) {
     <div class="flex items-start justify-between">
       <div>
         <h3 class="font-semibold text-lg text-blue-700">${escapeHtml(audit.category)}</h3>
-        <p class="text-sm text-gray-600 mt-1">Date: ${escapeHtml(audit.date)}</p>
+        <p class="text-sm text-gray-600 mt-1">
+          Date: ${escapeHtml(
+              new Date(audit.date).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric'
+              }).replace(/ /g, '-')
+          )}
+        </p>
         <p class="text-xs text-gray-500 mt-1">ID: ${escapeHtml(audit.audit_id)}</p>
       </div>
       <div class="text-right text-xs text-gray-400">Pending</div>

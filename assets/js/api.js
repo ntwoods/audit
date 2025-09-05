@@ -9,6 +9,12 @@ async function apiGetPending() {
   if (!res.ok) throw new Error('Network error: ' + res.status);
   return res.json();
 }
+async function apiGetError() {
+  const url = `${API_BASE_URL}?action=error`;
+  const res = await fetch(url, { method: 'GET', cache: 'no-cache' });
+  if (!res.ok) throw new Error('Network error: ' + res.status);
+  return res.json();
+}
 
 /**
  * payload: { action:'submit', audit_id, result:'error'|'no_error', remark, files: [{name,mime,base64}] }

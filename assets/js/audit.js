@@ -15,7 +15,8 @@ async function initPage() {
 
   // initial load
   await loadPending();
-
+  await loadError();  
+  
   async function loadPending() {
     container.innerHTML = '<div class="col-span-full p-8 text-center text-gray-400">Loading...</div>';
     emptyState.classList.add('hidden');
@@ -70,7 +71,7 @@ async function initPage() {
   }
 }
 
-  await loadError();
+
 
   async function loadError() {
     container.innerHTML = '<div class="col-span-full p-8 text-center text-gray-400">Loading...</div>';

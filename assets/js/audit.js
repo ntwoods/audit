@@ -125,4 +125,3 @@ async function initPage() {
       container.innerHTML = `<div class="col-span-full p-8 text-center text-red-500">Error loading data: ${escapeHtml(err.message || err)}</div>`;
     }
   }
-}

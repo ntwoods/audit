@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Verify Audit - Error Queue</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    /* Reuse style similar to startAudit for consistent look */
+    :root{
+      --bg:#f9fafb; --card:#fff; --muted:#6b7280; --accent:#0b76ef; --danger:#ef4444; --success:#10b981; --glass: rgba(0,0,0,0.04);
+    }
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);padding:20px;color:#111827}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    h1{margin:0;font-size:20px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+    .card{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 8px 20px var(--glass);display:flex;flex-direction:column}
+    .meta{display:flex;justify-content:space-between;align-items:center}
+    .title{font-weight:700}
+    .category{color:var(--muted)}
+    .badge{padding:6px 8px;border-radius:8px;background:#f3f4f6;font-weight:700}
+    .countdown{font-weight:700;margin-top:10px}
+    .actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+    button{padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:700}
+    .err{background:var(--danger);color:#fff}
+    .noerr{background:var(--success);color:#fff}
+    .small{font-size:13px;padding:6px 10px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:999}
+    .modal{background:var(--card);padding:16px;border-radius:10px;width:520px;max-width:96%}
+    textarea{width:100%;min-height:100px;border-radius:8px;padding:10px;border:1px solid #e5e7eb}
+    .files-list{font-size:13px;color:var(--muted);margin-top:8px}
+    .empty{padding:40px;border-radius:12px;background:#fff;border:1px dashed #e6e6e6;text-align:center;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Verify Audit — Error Queue</h1>
+      <div style="color:var(--muted);font-size:13px;margin-top:4px">Fetches previously reported errors for verification</div>
+    </div>
+    <div>
+      <button id="refresh" class="small">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" style="display:none;margin-top:12px">No error audits found.</div>
+  </main>
+
+  <!-- modal -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div id="title">Verify Error</div>
+        <button id="close">✕</button>
+      </header>
+      <div>
+        <div style="font-size:13px;color:var(--muted)">Audit ID: <span id="auditId" style="font-weight:700"></span></div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">Category: <span id="cat" style="font-weight:700"></span></div>
+      </div>
+
+      <div style="margin-top:10px">
+        <textarea id="remark" placeholder="Verification remark"></textarea>
+      </div>
+
+      <div style="margin-top:8px">
+        <input id="files" type="file" multiple>
+        <div class="files-list" id="filesList">No files selected</div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+        <button id="cancel" class="small">Cancel</button>
+        <button id="submit" class="small err">Submit</button>
+      </div>
+
+      <div id="status" style="margin-top:8px;color:var(--muted);font-size:13px"></div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const API_URL = 'https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec';
+      const grid = document.getElementById('grid');
+      const empty = document.getElementById('empty');
+      const refresh = document.getElementById('refresh');
+
+      const modalBackdrop = document.getElementById('modalBackdrop');
+      const closeBtn = document.getElementById('close');
+      const cancelBtn = document.getElementById('cancel');
+      const submitBtn = document.getElementById('submit');
+      const titleEl = document.getElementById('title');
+      const auditIdEl = document.getElementById('auditId');
+      const catEl = document.getElementById('cat');
+      const remarkInput = document.getElementById('remark');
+      const fileInput = document.getElementById('files');
+      const filesList = document.getElementById('filesList');
+      const statusEl = document.getElementById('status');
+
+      let currentCard = null;
+      let currentAction = '';
+
+      function fetchErrors(){
+        grid.innerHTML = ''; empty.style.display='none';
+        fetch(API_URL + '?action=error').then(r=>r.json()).then(data=>{
+          if(!data || !data.success || !Array.isArray(data.data) || data.data.length===0){
+            empty.style.display = 'block'; return;
+          }
+          data.data.forEach(item => {
+            const auditId = item.audit_id || item['audit_id'] || item['Audit ID'];
+            const dateStr = item.date || item.Date;
+            const category = item.category || item.Category;
+            const card = document.createElement('div'); card.className = 'card';
+            card.style.minHeight = '120px';
+            card.innerHTML = `
+              <div class="meta">
+                <div>
+                  <div class="title">${auditId || '—'}</div>
+                  <div class="category">${category || '—'}</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="badge">${dateStr || ''}</div>
+                </div>
+              </div>
+              <div class="countdown" data-target="${dateStr || ''}" style="margin-top:8px">Loading timer...</div>
+              <div class="actions">
+                <button class="err" data-action="verifyError">Error Found</button>
+                <button class="noerr" data-action="verifyNoError">Error Not Found</button>
+              </div>
+            `;
+            card.dataset.auditId = auditId || '';
+            card.dataset.category = category || '';
+            card.dataset.date = dateStr || '';
+            grid.appendChild(card);
+            card.querySelectorAll('button').forEach(b=>{
+              b.addEventListener('click', ()=> openModal(card, b.dataset.action));
+            });
+            // countdown reuse - small function
+            startCountdown(card.querySelector('.countdown'), dateStr);
+          });
+        }).catch(err=>{
+          empty.textContent = 'Failed to fetch: ' + err.message; empty.style.display='block';
+        });
+      }
+
+      function startCountdown(el, dateStr){
+        const parsed = new Date(dateStr);
+        if(isNaN(parsed)){ el.textContent='Invalid date'; return; }
+        const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 18,0,0,0);
+        function update(){
+          const now = new Date(); let d = target - now;
+          if(d<=0){ el.textContent='Deadline reached'; return; }
+          const h = Math.floor(d/(1000*60*60)); d -= h*(1000*60*60);
+          const m = Math.floor(d/(1000*60)); d -= m*(1000*60);
+          const s = Math.floor(d/1000);
+          el.textContent = `${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+        }
+        update();
+        setInterval(update,1000);
+      }
+
+      function openModal(card, action){
+        currentCard = card;
+        currentAction = action; // verifyError or verifyNoError
+        titleEl.textContent = action === 'verifyError' ? 'Verify — Error Found' : 'Verify — No Error';
+        auditIdEl.textContent = card.dataset.auditId || '';
+        catEl.textContent = card.dataset.category || '';
+        remarkInput.value = '';
+        fileInput.value = '';
+        filesList.textContent = 'No files selected';
+        statusEl.textContent = '';
+        submitBtn.className = 'small ' + (action==='verifyError' ? 'err' : 'noerr');
+        modalBackdrop.style.display = 'flex';
+      }
+
+      fileInput.addEventListener('change', ()=>{
+        const files = Array.from(fileInput.files || []);
+        if(files.length===0) filesList.textContent = 'No files selected';
+        else filesList.textContent = files.map(f => `${f.name} (${Math.round(f.size/1024)} KB)`).join(', ');
+      });
+
+      closeBtn.addEventListener('click', ()=> modalBackdrop.style.display='none');
+      cancelBtn.addEventListener('click', ()=> modalBackdrop.style.display='none');
+
+      submitBtn.addEventListener('click', async ()=>{
+        const remark = remarkInput.value.trim();
+        if(!remark){ statusEl.textContent = 'Please enter remark.'; return; }
+        statusEl.textContent = 'Preparing files...';
+        submitBtn.disabled = true;
+        cancelBtn.disabled = true;
+        const files = Array.from(fileInput.files || []);
+        const filesPayload = await Promise.all(files.map(f => fileToBase64Object(f)));
+        const payload = {
+          action: currentAction,
+          audit_id: currentCard.dataset.auditId,
+          category: currentCard.dataset.category,
+          remark: remark,
+          files: filesPayload
+        };
+        statusEl.textContent = 'Sending...';
+        try{
+          const resp = await fetch(API_URL, {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+          });
+          const result = await resp.json();
+          if(result && result.success){
+            statusEl.textContent = 'Verified successfully.'; setTimeout(()=> modalBackdrop.style.display='none',800);
+          } else {
+            statusEl.textContent = 'Server error: ' + (result && result.message ? result.message : 'unknown');
+          }
+        }catch(err){
+          statusEl.textContent = 'Network error: ' + (err.message || err);
+        }finally{
+          submitBtn.disabled = false; cancelBtn.disabled = false;
+        }
+      });
+
+      function fileToBase64Object(file){
+        return new Promise((resolve,reject)=>{
+          const reader = new FileReader();
+          reader.onload = e => {
+            const dataURL = e.target.result;
+            const comma = dataURL.indexOf(',');
+            const base64 = dataURL.substring(comma+1);
+            resolve({ name: file.name, mimeType: file.type || 'application/octet-stream', base64: base64 });
+          };
+          reader.onerror = e => reject(e);
+          reader.readAsDataURL(file);
+        });
+      }
+
+      refresh.addEventListener('click', fetchErrors);
+      // initial load
+      fetchErrors();
+    })();
+  </script>
+</body>
+</html>

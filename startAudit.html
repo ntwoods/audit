@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Start Audit - Pending</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    /* Simple clean CSS - card grid + modal styles */
+    :root{
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#0b76ef;
+      --danger:#ef4444;
+      --success:#10b981;
+      --glass: rgba(0,0,0,0.04);
+    }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,var(--bg),#fff);
+      min-height:100vh;
+      padding:24px;
+      color:#111827;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:18px;
+    }
+    h1{font-size:20px;margin:0}
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap:16px;
+    }
+    .card{
+      background:var(--card);
+      border-radius:12px;
+      padding:14px;
+      box-shadow: 0 6px 18px var(--glass);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      position:relative;
+    }
+    .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .badge{
+      padding:6px 8px;border-radius:8px;font-weight:600;font-size:12px;background:#f3f4f6;color:#111827;
+      border:1px solid rgba(0,0,0,0.04)
+    }
+    .title{font-weight:700}
+    .category{color:var(--muted);font-size:14px}
+    .countdown{
+      margin-top:8px;
+      font-weight:700;
+      font-size:18px;
+    }
+    .actions{display:flex;gap:8px;margin-top:12px}
+    button{
+      padding:8px 12px;border-radius:8px;border:0;font-weight:600;cursor:pointer;
+      box-shadow:none;
+    }
+    .err{background:var(--danger);color:#fff}
+    .noerr{background:var(--success);color:#fff}
+    .small{font-size:13px;padding:6px 10px}
+    /* modal */
+    .modal-backdrop{
+      position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:999;
+    }
+    .modal{
+      width:520px;max-width:94%;background:var(--card);padding:16px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,0.2);
+    }
+    .modal header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    textarea{width:100%;min-height:100px;border-radius:8px;padding:10px;border:1px solid #e5e7eb;resize:vertical}
+    .files-list{font-size:13px;color:var(--muted);margin-top:8px}
+    .topbar{display:flex;gap:8px;align-items:center}
+    .loader{display:inline-block;width:18px;height:18px;border-radius:50%;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .empty{padding:40px;border-radius:12px;background:#fff;border:1px dashed #e6e6e6;text-align:center;color:var(--muted)}
+    footer{margin-top:16px;color:var(--muted);font-size:13px}
+    @media (max-width:420px){ .modal{padding:12px} }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Start Audit — Pending</h1>
+      <div style="color:var(--muted);font-size:13px;margin-top:4px">Fetches <strong>pending</strong> audits and allows reporting</div>
+    </div>
+    <div class="topbar">
+      <button id="refreshBtn" class="small">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="cards" class="grid"></div>
+    <div id="empty" class="empty" style="display:none;margin-top:12px">No pending audits found.</div>
+  </main>
+
+  <!-- modal markup -->
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-hidden="true">
+    <div class="modal" role="document">
+      <header>
+        <div id="modalTitle">Report Error</div>
+        <button id="modalClose" title="Close">✕</button>
+      </header>
+
+      <div>
+        <label style="font-size:13px;color:var(--muted)">Audit ID: <span id="mAuditId" style="font-weight:700"></span></label><br>
+        <label style="font-size:13px;color:var(--muted)">Category: <span id="mCategory" style="font-weight:700"></span></label>
+      </div>
+
+      <div style="margin-top:12px">
+        <textarea id="remark" placeholder="Enter remark (required)"></textarea>
+      </div>
+
+      <div style="margin-top:8px">
+        <input id="fileInput" type="file" multiple />
+        <div class="files-list" id="fileList">No files selected</div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button id="modalCancel" class="small">Cancel</button>
+        <button id="modalSubmit" class="small err">Submit</button>
+      </div>
+
+      <div id="modalStatus" style="margin-top:10px;color:var(--muted);font-size:13px"></div>
+    </div>
+  </div>
+
+  <footer>
+    Tip: attachments are uploaded as base64 and created in Google Drive by the server.
+  </footer>
+
+  <script>
+    (function(){
+      const API_URL = 'https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec';
+      const cardsEl = document.getElementById('cards');
+      const emptyEl = document.getElementById('empty');
+      const refreshBtn = document.getElementById('refreshBtn');
+
+      // Modal controls
+      const modalBackdrop = document.getElementById('modalBackdrop');
+      const modalClose = document.getElementById('modalClose');
+      const modalCancel = document.getElementById('modalCancel');
+      const modalSubmit = document.getElementById('modalSubmit');
+      const modalTitle = document.getElementById('modalTitle');
+      const mAuditId = document.getElementById('mAuditId');
+      const mCategory = document.getElementById('mCategory');
+      const remarkInput = document.getElementById('remark');
+      const fileInput = document.getElementById('fileInput');
+      const fileList = document.getElementById('fileList');
+      const modalStatus = document.getElementById('modalStatus');
+
+      let currentAction = ''; // "error" or "noError"
+      let currentCard = null;
+      let timers = {}; // store interval ids to clear if needed
+
+      function fetchPending(){
+        cardsEl.innerHTML = '';
+        emptyEl.style.display = 'none';
+        fetch(API_URL + '?action=pending').then(r=>r.json()).then(res=>{
+          if(!res || !res.success || !Array.isArray(res.data) || res.data.length===0){
+            emptyEl.style.display = 'block'; return;
+          }
+          buildCards(res.data);
+        }).catch(err=>{
+          emptyEl.textContent = 'Failed to fetch. Check API URL or deployment.'; emptyEl.style.display = 'block';
+          console.error(err);
+        });
+      }
+
+      function fmtDateISOtoDisplay(isoDateStr){
+        // expect iso like "2025-09-05" or "2025-09-05T..." or a displayed date string
+        const d = new Date(isoDateStr);
+        if(isNaN(d)) return isoDateStr;
+        const dd = String(d.getDate()).padStart(2,'0');
+        const mmm = d.toLocaleString('en-GB',{month:'short'});
+        const yy = String(d.getFullYear()).slice(-2);
+        return `${dd}-${mmm}-${yy}`;
+      }
+
+      function buildCards(data){
+        data.forEach(item=>{
+          // headers from the sheet are used as keys.
+          // expected keys: audit_id, date, category, timestamp etc
+          const auditId = item.audit_id || item['audit_id'] || item['Audit ID'] || item['audit id'] || item['audit_id'] || item.AUDIT_ID || item['audit_id'];
+          const dateStr = item.date || item.Date || item['date'];
+          const category = item.category || item.Category || item['category'];
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <div class="meta">
+              <div style="flex:1">
+                <div class="title">${auditId || '—'}</div>
+                <div class="category">${category || '—'}</div>
+              </div>
+              <div style="text-align:right">
+                <div class="badge">${fmtDateISOtoDisplay(dateStr || '')}</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:6px">${dateStr || ''}</div>
+              </div>
+            </div>
+            <div class="countdown" data-target="${dateStr || ''}">Loading timer...</div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="err" data-action="error">Error Found</button>
+              <button class="noerr" data-action="noError">Error Not Found</button>
+            </div>
+          `;
+          // attach data attributes
+          card.dataset.auditId = auditId || '';
+          card.dataset.category = category || '';
+          card.dataset.date = dateStr || '';
+          cardsEl.appendChild(card);
+
+          // bind buttons
+          card.querySelectorAll('button').forEach(btn=>{
+            btn.addEventListener('click', ()=> openModal(card, btn.dataset.action));
+          });
+
+          // setup countdown
+          const cdEl = card.querySelector('.countdown');
+          startCountdown(cdEl, dateStr);
+        });
+      }
+
+      function startCountdown(el, dateStr){
+        // compute target as dateStr at 18:00 local time
+        // parse date string robustly
+        let target;
+        if(!dateStr) {
+          el.textContent = 'No deadline';
+          return;
+        }
+        // If dateStr contains time, ignore and set time to 18:00
+        const parsed = new Date(dateStr);
+        if(isNaN(parsed)){
+          el.textContent = 'Invalid date';
+          return;
+        }
+        target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 18, 0, 0, 0);
+        function update(){
+          const now = new Date();
+          let diff = target - now;
+          if(diff <= 0){
+            el.textContent = 'Deadline reached';
+            return;
+          }
+          const days = Math.floor(diff / (1000*60*60*24));
+          diff -= days*(1000*60*60*24);
+          const hours = Math.floor(diff/(1000*60*60));
+          diff -= hours*(1000*60*60);
+          const mins = Math.floor(diff/(1000*60));
+          diff -= mins*(1000*60);
+          const secs = Math.floor(diff/1000);
+          const parts = [];
+          if(days>0) parts.push(days + 'd');
+          parts.push(String(hours).padStart(2,'0') + 'h');
+          parts.push(String(mins).padStart(2,'0') + 'm');
+          parts.push(String(secs).padStart(2,'0') + 's');
+          el.textContent = parts.join(' ');
+          // will keep live automatically
+        }
+        update();
+        const id = setInterval(update, 1000);
+        // store so we can clear if needed
+        if(!timers[target]) timers[target] = [];
+        timers[target].push(id);
+      }
+
+      // Modal interactions
+      function openModal(cardEl, action){
+        currentAction = action; // "error" or "noError"
+        currentCard = cardEl;
+        mAuditId.textContent = cardEl.dataset.auditId || '(unknown)';
+        mCategory.textContent = cardEl.dataset.category || '(unknown)';
+        remarkInput.value = '';
+        fileInput.value = '';
+        fileList.textContent = 'No files selected';
+        modalTitle.textContent = (action === 'error') ? 'Report Error' : 'Report No Error';
+        modalSubmit.textContent = 'Submit';
+        modalSubmit.className = 'small ' + (action === 'error' ? 'err' : 'noerr');
+        modalStatus.textContent = '';
+        modalBackdrop.style.display = 'flex';
+        modalBackdrop.setAttribute('aria-hidden','false');
+      }
+
+      function closeModal(){
+        modalBackdrop.style.display = 'none';
+        modalBackdrop.setAttribute('aria-hidden','true');
+      }
+
+      modalClose.addEventListener('click', closeModal);
+      modalCancel.addEventListener('click', closeModal);
+
+      fileInput.addEventListener('change', ()=>{
+        const files = Array.from(fileInput.files || []);
+        if(files.length === 0) { fileList.textContent = 'No files selected'; return; }
+        fileList.textContent = files.map(f => f.name + ' (' + Math.round(f.size/1024) + ' KB)').join(', ');
+      });
+
+      modalSubmit.addEventListener('click', async ()=>{
+        const remark = remarkInput.value.trim();
+        if(!remark){
+          modalStatus.textContent = 'Please enter remark.';
+          return;
+        }
+        modalStatus.textContent = 'Preparing files...';
+        modalSubmit.disabled = true;
+        modalCancel.disabled = true;
+
+        // collect files -> base64
+        const files = Array.from(fileInput.files || []);
+        const filesPayload = await Promise.all(files.map(f => fileToBase64Object(f)));
+
+        // prepare payload
+        const payload = {
+          action: currentAction === 'error' ? 'error' : 'noError',
+          audit_id: currentCard.dataset.auditId,
+          category: currentCard.dataset.category,
+          remark: remark,
+          files: filesPayload // each { name, mimeType, base64 }
+        };
+
+        modalStatus.textContent = 'Uploading...';
+
+        try {
+          const resp = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await resp.json();
+          if(result && result.success){
+            modalStatus.textContent = 'Submitted successfully.';
+            setTimeout(()=> closeModal(), 900);
+          } else {
+            modalStatus.textContent = 'Server error: ' + (result && result.message ? result.message : 'unknown');
+          }
+        } catch(err){
+          console.error(err);
+          modalStatus.textContent = 'Network error: ' + (err.message || err);
+        } finally {
+          modalSubmit.disabled = false;
+          modalCancel.disabled = false;
+        }
+      });
+
+      // utility - convert File -> {name, mimeType, base64}
+      function fileToBase64Object(file){
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = function(e){
+            // e.target.result = data:[<mediatype>][;base64],<data>
+            const dataURL = e.target.result;
+            const comma = dataURL.indexOf(',');
+            const base64 = dataURL.substring(comma+1);
+            resolve({ name: file.name, mimeType: file.type || 'application/octet-stream', base64: base64 });
+          };
+          reader.onerror = function(e){ reject(e); };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // events
+      refreshBtn.addEventListener('click', fetchPending);
+
+      // initial load
+      fetchPending();
+    })();
+  </script>
+</body>
+</html>

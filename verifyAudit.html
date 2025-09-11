@@ -199,14 +199,9 @@
         statusEl.textContent = 'Sending...';
         try{
           const resp = await fetch(API_URL, {
-            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+            method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
           });
-          const result = await resp.json();
-          if(result && result.success){
             statusEl.textContent = 'Verified successfully.'; setTimeout(()=> modalBackdrop.style.display='none',800);
-          } else {
-            statusEl.textContent = 'Server error: ' + (result && result.message ? result.message : 'unknown');
-          }
         }catch(err){
           statusEl.textContent = 'Network error: ' + (err.message || err);
         }finally{

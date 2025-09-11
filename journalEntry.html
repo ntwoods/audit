@@ -182,8 +182,7 @@
           mode: "no-cors",
           body: JSON.stringify(payload)
         });
-        const json = await res.json();
-        alert(json.message || "Submitted successfully");
+        alert("Submitted successfully");
         modal.style.display = "none";
         fetchData(); // refresh
       } catch (err) {

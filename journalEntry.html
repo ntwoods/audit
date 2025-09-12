@@ -166,7 +166,7 @@
       const fileData = [];
       for (let f of files) {
         const base64 = await toBase64(f);
-        fileData.push({ name: f.name, data: base64 });
+        fileData.push({ name: f.name, data: f.base64 });
       }
 
       const payload = {

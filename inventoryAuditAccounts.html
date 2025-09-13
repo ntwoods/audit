@@ -148,8 +148,12 @@
     async function fetchJournalEntries() {
       try {
         const res = await fetch(`${API_URL}?action=journalentry`);
-        const data = await res.json();
-        renderCards(data);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          renderCards(json.data);
+        } else {
+          document.getElementById("cardsContainer").innerHTML = "<p>No journal entries found.</p>";
+        }
       } catch (err) {
         console.error("Error fetching journal entries:", err);
       }

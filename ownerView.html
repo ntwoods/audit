@@ -132,8 +132,16 @@
       btnCSV: document.getElementById('btnDownloadCSV')
     };
 
-    // ===== Init =====
-    document.addEventListener("DOMContentLoaded", init);
+    function safeInit(){
+      if (window.Tabulator) {
+        init(); // run your real init only when Tabulator exists
+      } else {
+        console.log("Waiting for Tabulator...");
+        setTimeout(safeInit, 50); // retry after 50ms
+      }
+    }
+    document.addEventListener("DOMContentLoaded", safeInit);
+
     async function init(){
       await loadData();
       buildCategoryFilter();

@@ -8,38 +8,35 @@
   <!-- Favicon -->
   <link rel="icon" href="logo.png" type="image/png">
 
-  <!-- Tailwind -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com" defer></script>
 
-  <!-- Tabulator -->
+  <!-- Tabulator (table library) -->
   <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
   <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js" defer></script>
 
-  <!-- flatpickr -->
+  <!-- flatpickr (date picker) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script>
 
   <style>
-    .tabulator .tabulator-header .tabulator-col { background:#f8fafc; }
-    .tabulator .tabulator-row:hover { background: #f1f5f9; }
-    .status-pill { padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    body { font-family: Inter, system-ui, sans-serif; background: #f9fafb; color: #111827; }
+    .status-pill { padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
     .status-noerror { background:#dcfce7; color:#065f46; }
     .status-tally { background:#fee2e2; color:#991b1b; }
-    .tabulator-row:nth-child(even) { background:#fafafa; }
-    .btn { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .55rem; border-radius:.5rem; border:1px solid #e5e7eb; background:#fff; font-size:.8rem;}
-    .btn:hover { background:#f8fafc; }
-    .btn:focus { outline:2px solid #bfdbfe; outline-offset:2px; }
-    .btn svg { width:14px; height:14px; }
-    .toolbar { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(6px); background: rgba(255,255,255,.8); }
+    .btn { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .65rem; border-radius:.5rem; border:1px solid #e5e7eb; background:#fff; font-size:.8rem; transition: all .2s; }
+    .btn:hover { background:#f3f4f6; }
+    .toolbar { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(6px); background: rgba(255,255,255,.9); }
+    .loading { text-align:center; padding:2rem; color:#6b7280; }
   </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800">
+<body class="min-h-screen">
   <!-- Header -->
   <header class="toolbar border-b border-slate-200">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">Inventory Audit — Owner View</h1>
-        <p class="text-sm text-slate-500">Live overview of audit outcomes with quick filters & file access.</p>
+        <p class="text-sm text-slate-500">Audit data overview with filters, sorting & file access</p>
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <span id="stat-total" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-sm">Total: 0</span>
@@ -95,14 +92,15 @@
 
   <!-- Table -->
   <main class="max-w-7xl mx-auto px-4 pb-12">
-    <div id="table" class="border border-slate-200 rounded-xl bg-white shadow-sm"></div>
+    <div id="loading" class="loading">Loading data…</div>
+    <div id="table" class="hidden border border-slate-200 rounded-xl bg-white shadow-sm"></div>
     <div id="emptyState" class="hidden mt-8 text-center text-slate-500">No records match the current filters.</div>
-    <div id="errorState" class="hidden mt-8 text-center text-rose-600 font-medium">Couldn’t load data. Please check the API or try again.</div>
+    <div id="errorState" class="hidden mt-8 text-center text-rose-600 font-medium">Couldn’t load data. Please check the API.</div>
   </main>
 
-  <!-- Dashboard script -->
+  <!-- Dashboard Script -->
   <script defer>
-    // ---- Helper functions for date handling ----
+    // ===== Date helpers =====
     function parseISO(str){ return new Date(str); }
     function formatDate(d){ if(isNaN(d)) return ""; return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
     function startOfToday(){ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
@@ -114,80 +112,140 @@
     function isWithinInterval(d,{start,end}){ return d>=start && d<=end; }
     function isSameDay(d1,d2){ return d1.toDateString()===d2.toDateString(); }
 
+    // ===== Globals =====
     const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
-
     let rawData = [], table;
-    const statTotal=document.getElementById('stat-total'), statOk=document.getElementById('stat-ok'), statRed=document.getElementById('stat-red');
-    const quickDate=document.getElementById('quickDate'), dateRange=document.getElementById('dateRange'), categoryFilter=document.getElementById('categoryFilter'), statusFilter=document.getElementById('statusFilter');
-    const btnReset=document.getElementById('btnReset'), btnRefresh=document.getElementById('btnRefresh'), btnDownloadCSV=document.getElementById('btnDownloadCSV');
-    const emptyState=document.getElementById('emptyState'), errorState=document.getElementById('errorState');
-    const datePicker=flatpickr(dateRange,{mode:"range",dateFormat:"d M Y",onChange:applyFilters});
+    const els = {
+      table: document.getElementById('table'),
+      loading: document.getElementById('loading'),
+      empty: document.getElementById('emptyState'),
+      error: document.getElementById('errorState'),
+      statTotal: document.getElementById('stat-total'),
+      statOk: document.getElementById('stat-ok'),
+      statRed: document.getElementById('stat-red'),
+      quickDate: document.getElementById('quickDate'),
+      dateRange: document.getElementById('dateRange'),
+      cat: document.getElementById('categoryFilter'),
+      stat: document.getElementById('statusFilter'),
+      btnReset: document.getElementById('btnReset'),
+      btnRefresh: document.getElementById('btnRefresh'),
+      btnCSV: document.getElementById('btnDownloadCSV')
+    };
 
-    init();
+    // ===== Init =====
+    document.addEventListener("DOMContentLoaded", init);
+    async function init(){
+      await loadData();
+      buildCategoryFilter();
+      buildTable();
+      wireControls();
+      applyFilters();
+    }
 
-    async function init(){ await loadData(); buildCategoryFilter(); buildTable(); wireControls(); applyFilters(); }
-
+    // ===== Load Data =====
     async function loadData(){
-      errorState.classList.add('hidden');
+      els.loading.classList.remove('hidden');
+      els.table.classList.add('hidden');
+      els.error.classList.add('hidden');
       try{
-        const res=await fetch(API_URL); if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const res=await fetch(API_URL);
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
         const json=await res.json();
-        rawData=(json&&json.data?json.data:[]).map(r=>({...r,_statusNorm:String(r.status||'').toLowerCase(),_dateObj:r.date?parseISO(r.date):null}));
+        rawData=(json?.data||[]).map(r=>({...r,_statusNorm:String(r.status||'').toLowerCase(),_dateObj:r.date?parseISO(r.date):null}));
         updateStats(rawData);
-      }catch(e){ console.error(e); errorState.classList.remove('hidden'); }
+        els.loading.classList.add('hidden');
+        els.table.classList.remove('hidden');
+      }catch(e){
+        console.error(e);
+        els.loading.classList.add('hidden');
+        els.error.classList.remove('hidden');
+      }
     }
 
-    function updateStats(arr){ statTotal.textContent=`Total: ${arr.length}`; statOk.textContent=`No Error: ${arr.filter(x=>x._statusNorm==='noerror').length}`; statRed.textContent=`Tally Adj.: ${arr.filter(x=>x._statusNorm==='tallyadjustment').length}`; }
-
-    function buildCategoryFilter(){ const cats=[...new Set(rawData.map(r=>r.category).filter(Boolean))].sort(); categoryFilter.innerHTML=`<option value="">All Categories</option>`+cats.map(c=>`<option>${c}</option>`).join(''); }
-
-    function buildTable(){
-      if(table) table.destroy();
-      table=new Tabulator("#table",{ data:rawData, layout:"fitColumns", height:"600px", initialSort:[{column:"date",dir:"desc"}],
-        columns:[
-          {title:"Date",field:"date",sorter:"date",formatter:(cell)=>formatDate(parseISO(cell.getValue()))},
-          {title:"Category",field:"category",widthGrow:1},
-          {title:"Audit ID",field:"audit_id",width:180},
-          {title:"Status",field:"status",formatter:(cell)=>{const v=String(cell.getValue()||'').toLowerCase(); if(v==='noerror') return `<span class="status-pill status-noerror">No Error</span>`; if(v==='tallyadjustment') return `<span class="status-pill status-tally">Tally Adjustment</span>`; return v;}},
-          {title:"Audit Remark",field:"audit_remark"},
-          {title:"Audit File",field:"audit_file",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
-          {title:"Verification Remark",field:"verification_remark"},
-          {title:"Verification File",field:"verification_file",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
-          {title:"Journal Entry Remark",field:"journal_entry_remark"},
-          {title:"Journal Entry File",field:"journal_entry_file",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
-          {title:"Accounts Remark",field:"accountsremark"},
-          {title:"Accounts Correction File",field:"accountscorrectionfile",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
-        ]
-      });
+    function updateStats(arr){
+      els.statTotal.textContent=`Total: ${arr.length}`;
+      els.statOk.textContent=`No Error: ${arr.filter(x=>x._statusNorm==='noerror').length}`;
+      els.statRed.textContent=`Tally Adj.: ${arr.filter(x=>x._statusNorm==='tallyadjustment').length}`;
     }
 
-    function wireControls(){
-      quickDate.addEventListener('change',applyFilters);
-      categoryFilter.addEventListener('change',applyFilters);
-      statusFilter.addEventListener('change',applyFilters);
-      btnReset.addEventListener('click',()=>{quickDate.value="all";datePicker.clear();categoryFilter.value="";statusFilter.value="";applyFilters();});
-      btnRefresh.addEventListener('click',async()=>{await loadData();table.replaceData(rawData);buildCategoryFilter();applyFilters();});
-      btnDownloadCSV.addEventListener('click',()=>table.download("csv","owner-audits.csv"));
+    // ===== Filters =====
+    function buildCategoryFilter(){
+      const cats=[...new Set(rawData.map(r=>r.category).filter(Boolean))].sort();
+      els.cat.innerHTML=`<option value="">All Categories</option>`+cats.map(c=>`<option>${c}</option>`).join('');
     }
 
-    function currentDateInterval(){ const now=new Date(); switch(quickDate.value){
-      case "today": return {start:startOfToday(),end:now};
-      case "yesterday": return {start:subDays(startOfToday(),1),end:startOfToday()};
-      case "thisWeek": return {start:startOfWeek(now,{weekStartsOn:1}),end:endOfWeek(now,{weekStartsOn:1})};
-      case "lastWeek": {const end=subDays(startOfWeek(now,{weekStartsOn:1}),1);return {start:startOfWeek(end,{weekStartsOn:1}),end};}
-      case "last10": return {start:subDays(startOfToday(),9),end:now};
-      case "last20": return {start:subDays(startOfToday(),19),end:now};
-      case "last30": return {start:subDays(startOfToday(),29),end:now};
-      case "thisMonth": return {start:startOfMonth(now),end:endOfMonth(now)};
-      default: return null;}}
+    function currentDateInterval(){
+      const now=new Date();
+      switch(els.quickDate.value){
+        case "today": return {start:startOfToday(),end:now};
+        case "yesterday": return {start:subDays(startOfToday(),1),end:startOfToday()};
+        case "thisWeek": return {start:startOfWeek(now,{weekStartsOn:1}),end:endOfWeek(now,{weekStartsOn:1})};
+        case "lastWeek": {const end=subDays(startOfWeek(now,{weekStartsOn:1}),1);return {start:startOfWeek(end,{weekStartsOn:1}),end};}
+        case "last10": return {start:subDays(startOfToday(),9),end:now};
+        case "last20": return {start:subDays(startOfToday(),19),end:now};
+        case "last30": return {start:subDays(startOfToday(),29),end:now};
+        case "thisMonth": return {start:startOfMonth(now),end:endOfMonth(now)};
+        case "range": {
+          const [start,end]=els.dateRange._flatpickr.selectedDates||[];
+          if(start&&end) return {start,end};
+          return null;
+        }
+        default: return null;
+      }
+    }
 
     function applyFilters(){
       if(!table) return;
-      const cat=categoryFilter.value.trim().toLowerCase();
-      const stat=statusFilter.value.trim().toLowerCase();
+      const cat=els.cat.value.trim().toLowerCase();
+      const stat=els.stat.value.trim().toLowerCase();
       const interval=currentDateInterval();
-      table.setFilter((data)=>{ if(cat&&String(data.category||'').toLowerCase()!==cat) return false; if(stat&&String(data._statusNorm||'')!==stat) return false; if(interval){const d=data._dateObj;if(!d) return false;if(!isWithinInterval(d,interval)) return false;} return true; });
-      emptyState.classList.toggle('hidden',table.getDataCount()>0);
+      table.setFilter((d)=>{
+        if(cat && String(d.category||'').toLowerCase()!==cat) return false;
+        if(stat && String(d._statusNorm||'')!==stat) return false;
+        if(interval){const date=d._dateObj;if(!date) return false;if(!isWithinInterval(date,interval)) return false;}
+        return true;
+      });
+      els.empty.classList.toggle('hidden',table.getDataCount()>0);
+    }
+
+    // ===== Table =====
+    function buildTable(){
+      if(table) table.destroy();
+      table=new Tabulator("#table",{
+        data:rawData,
+        layout:"fitColumns",
+        height:"600px",
+        initialSort:[{column:"date",dir:"desc"}],
+        columns:[
+          {title:"Date",field:"date",sorter:"date",formatter:(c)=>formatDate(parseISO(c.getValue()))},
+          {title:"Category",field:"category"},
+          {title:"Audit ID",field:"audit_id"},
+          {title:"Status",field:"status",formatter:(c)=>{const v=(c.getValue()||'').toLowerCase();if(v==='noerror') return `<span class="status-pill status-noerror">No Error</span>`;if(v==='tallyadjustment') return `<span class="status-pill status-tally">Tally Adjustment</span>`;return v;}},
+          {title:"Audit Remark",field:"audit_remark"},
+          {title:"Audit File",field:"audit_file",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
+          {title:"Verification Remark",field:"verification_remark"},
+          {title:"Verification File",field:"verification_file",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
+          {title:"Journal Entry Remark",field:"journal_entry_remark"},
+          {title:"Journal Entry File",field:"journal_entry_file",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
+          {title:"Accounts Remark",field:"accountsremark"},
+          {title:"Accounts Correction File",field:"accountscorrectionfile",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
+        ],
+      });
+    }
+
+    // ===== Controls =====
+    function wireControls(){
+      els.quickDate.addEventListener('change',()=>{
+        if(els.quickDate.value==="range"){els.dateRange.disabled=false;els.dateRange._flatpickr.open();}else{els.dateRange.disabled=true;els.dateRange._flatpickr.clear();}
+        applyFilters();
+      });
+      els.cat.addEventListener('change',applyFilters);
+      els.stat.addEventListener('change',applyFilters);
+      els.btnReset.addEventListener('click',()=>{els.quickDate.value="all";els.dateRange._flatpickr.clear();els.dateRange.disabled=true;els.cat.value="";els.stat.value="";applyFilters();});
+      els.btnRefresh.addEventListener('click',async()=>{await loadData();table.replaceData(rawData);buildCategoryFilter();applyFilters();});
+      els.btnCSV.addEventListener('click',()=>table.download("csv","audits.csv"));
+      // flatpickr init
+      els.dateRange._flatpickr=flatpickr(els.dateRange,{mode:"range",dateFormat:"d M Y",onChange:applyFilters});
     }
   </script>
 </body>

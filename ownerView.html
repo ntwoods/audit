@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inventory Audit — Owner View</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tabulator (table) -->
+  <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
+
+  <!-- date-fns (date utils) -->
+  <script src="https://unpkg.com/date-fns@3.6.0/dist/date-fns.min.js"></script>
+
+  <!-- flatpickr (date range) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <style>
+    /* Subtle polish over Tabulator default */
+    .tabulator .tabulator-header .tabulator-col { background:#f8fafc; }
+    .tabulator .tabulator-row:hover { background: #f1f5f9; }
+    .status-pill { padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .status-noerror { background:#dcfce7; color:#065f46; }      /* green */
+    .status-tally { background:#fee2e2; color:#991b1b; }        /* red */
+    /* Row striping consistent with Tailwind gray-50 */
+    .tabulator-row:nth-child(even) { background:#fafafa; }
+    /* Buttons inside cells */
+    .btn { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .55rem; border-radius:.5rem; border:1px solid #e5e7eb; background:#fff; font-size:.8rem;}
+    .btn:hover { background:#f8fafc; }
+    .btn:focus { outline:2px solid #bfdbfe; outline-offset:2px; }
+    .btn svg { width:14px; height:14px; }
+    /* Sticky toolbar on small screens */
+    .toolbar { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(6px); background: rgba(255,255,255,.8); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800">
+  <!-- Header -->
+  <header class="toolbar border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight">Inventory Audit — Owner View</h1>
+        <p class="text-sm text-slate-500">Live overview of audit outcomes with quick filters & file access.</p>
+      </div>
+      <!-- Quick Stats -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="stat-total" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-sm">Total: 0</span>
+        <span id="stat-ok" class="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-sm">No Error: 0</span>
+        <span id="stat-red" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700 text-sm">Tally Adj.: 0</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Controls -->
+  <section class="max-w-7xl mx-auto px-4 mt-4 mb-2">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- Date quick filter -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Date Quick Filter</label>
+        <select id="quickDate" class="w-full rounded-lg border-slate-300 text-sm">
+          <option value="all">All Dates</option>
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="thisWeek">This Week</option>
+          <option value="lastWeek">Last Week</option>
+          <option value="last10">Last 10 Days</option>
+          <option value="last20">Last 20 Days</option>
+          <option value="last30">Last 30 Days</option>
+          <option value="thisMonth">This Month</option>
+          <option value="range">Custom Range…</option>
+        </select>
+      </div>
+
+      <!-- Custom range -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Custom Date Range</label>
+        <input id="dateRange" class="w-full rounded-lg border-slate-300 text-sm" placeholder="Select range" disabled>
+      </div>
+
+      <!-- Category filter (populated dynamically) -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Category</label>
+        <select id="categoryFilter" class="w-full rounded-lg border-slate-300 text-sm">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+
+      <!-- Status filter -->
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+        <select id="statusFilter" class="w-full rounded-lg border-slate-300 text-sm">
+          <option value="">All Status</option>
+          <option value="noerror">No Error</option>
+          <option value="tallyadjustment">Tally Adjustment</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button id="btnReset" class="btn">
+        <!-- reset icon -->
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 3-6.708M3 4v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Reset Filters
+      </button>
+      <button id="btnRefresh" class="btn">
+        <!-- refresh icon -->
+        <svg viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-8-8v3l4-4-4-4v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Refresh Data
+      </button>
+      <button id="btnDownloadCSV" class="btn">
+        <!-- download -->
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Download CSV
+      </button>
+    </div>
+  </section>
+
+  <!-- Table -->
+  <main class="max-w-7xl mx-auto px-4 pb-12">
+    <div id="table" class="border border-slate-200 rounded-xl bg-white shadow-sm"></div>
+
+    <!-- Empty / Error states -->
+    <div id="emptyState" class="hidden mt-8 text-center text-slate-500">No records match the current filters.</div>
+    <div id="errorState" class="hidden mt-8 text-center text-rose-600 font-medium">Couldn’t load data. Please check the API or try again.</div>
+  </main>
+
+  <script>
+    // ======= Config =======
+    const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
+
+    // ======= Helpers =======
+    const {
+      parseISO, format, startOfToday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isSameDay
+    } = dateFns;
+
+    const fmtDate = (iso) => {
+      try {
+        const d = parseISO(iso);
+        return format(d, "dd MMM yyyy");
+      } catch { return iso || ""; }
+    };
+
+    const openIf = (url, label) => {
+      if (!url) return "";
+      const safe = String(url);
+      return `<a class="btn" href="${safe}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7M10 14L21 3M21 14v7H3V3h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        ${label}
+      </a>`;
+    };
+
+    // ======= State =======
+    let rawData = [];
+    let table;
+
+    // ======= UI Elements =======
+    const statTotal = document.getElementById('stat-total');
+    const statOk = document.getElementById('stat-ok');
+    const statRed = document.getElementById('stat-red');
+    const quickDate = document.getElementById('quickDate');
+    const dateRange = document.getElementById('dateRange');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const btnReset = document.getElementById('btnReset');
+    const btnRefresh = document.getElementById('btnRefresh');
+    const btnDownloadCSV = document.getElementById('btnDownloadCSV');
+    const emptyState = document.getElementById('emptyState');
+    const errorState = document.getElementById('errorState');
+
+    // ======= Date Range Picker =======
+    let datePicker = flatpickr(dateRange, {
+      mode: "range",
+      dateFormat: "d M Y",
+      onChange: applyFilters
+    });
+
+    // ======= Fetch & Build =======
+    init();
+
+    async function init() {
+      await loadData();
+      buildCategoryFilter();
+      buildTable();
+      wireControls();
+      applyFilters();
+    }
+
+    async function loadData() {
+      errorState.classList.add('hidden');
+      try {
+        const res = await fetch(API_URL, { method: 'GET', headers: { 'Accept': 'application/json' }});
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+
+        rawData = (json && json.data ? json.data : []).map(r => ({
+          ...r,
+          // normalize lower-case status for consistent filtering
+          _statusNorm: String(r.status || '').toLowerCase(),
+          _dateObj: r.date ? parseISO(r.date) : null,
+        }));
+
+        updateStats(rawData);
+      } catch (e) {
+        console.error(e);
+        errorState.classList.remove('hidden');
+      }
+    }
+
+    function updateStats(arr) {
+      const total = arr.length;
+      const ok = arr.filter(x => x._statusNorm === 'noerror').length;
+      const red = arr.filter(x => x._statusNorm === 'tallyadjustment').length;
+      statTotal.textContent = `Total: ${total}`;
+      statOk.textContent = `No Error: ${ok}`;
+      statRed.textContent = `Tally Adj.: ${red}`;
+    }
+
+    function buildCategoryFilter() {
+      const cats = Array.from(new Set(rawData.map(r => r.category).filter(Boolean))).sort();
+      categoryFilter.innerHTML = `<option value="">All Categories</option>` + cats.map(c => `<option>${escapeHtml(c)}</option>`).join('');
+    }
+
+    function buildTable() {
+      // Destroy existing
+      if (table) table.destroy();
+
+      table = new Tabulator("#table", {
+        data: rawData,
+        layout: "fitColumns",
+        height: "600px",
+        virtualDom: true,
+        initialSort: [{ column:"date", dir:"desc" }],
+        placeholder: "Loading…",
+        reactiveData: false,
+        columns: [
+          { title: "Date", field: "date", sorter: "date", width: 120, hozAlign:"center",
+            formatter: (cell) => fmtDate(cell.getValue())
+          },
+          { title: "Category", field: "category", widthGrow: 1 },
+          { title: "Audit ID", field: "audit_id", width: 180, headerSort: true },
+          { title: "Status", field: "status", width: 140, hozAlign:"center", headerSort:true,
+            formatter: (cell) => {
+              const v = String(cell.getValue() || '').toLowerCase();
+              if (v === 'noerror') return `<span class="status-pill status-noerror">No Error</span>`;
+              if (v === 'tallyadjustment') return `<span class="status-pill status-tally">Tally Adjustment</span>`;
+              return `<span class="status-pill">${cell.getValue()||''}</span>`;
+            }
+          },
+          // Remarks & Files
+          { title: "Audit Remark", field: "audit_remark", widthGrow: 1 },
+          { title: "Audit File", field: "audit_file", width: 130, hozAlign:"center", headerSort:false,
+            formatter: (cell) => openIf(cell.getValue(), "Open")
+          },
+
+          { title: "Verification Remark", field: "verification_remark", widthGrow: 1 },
+          { title: "Verification File", field: "verification_file", width: 150, hozAlign:"center", headerSort:false,
+            formatter: (cell) => openIf(cell.getValue(), "Open")
+          },
+
+          { title: "Journal Entry Remark", field: "journal_entry_remark", widthGrow: 1 },
+          { title: "Journal Entry File", field: "journal_entry_file", width: 150, hozAlign:"center", headerSort:false,
+            formatter: (cell) => openIf(cell.getValue(), "Open")
+          },
+
+          { title: "Accounts Remark", field: "accountsremark", widthGrow: 1 },
+          { title: "Accounts Correction File", field: "accountscorrectionfile", width: 190, hozAlign:"center", headerSort:false,
+            formatter: (cell) => openIf(cell.getValue(), "Open")
+          },
+        ],
+        rowFormatter: function(row){
+          // Soft tint entire row based on status
+          const data = row.getData();
+          const s = data._statusNorm;
+          if (s === 'noerror') {
+            row.getElement().style.boxShadow = "inset 3px 0 0 #10b981";
+          } else if (s === 'tallyadjustment') {
+            row.getElement().style.boxShadow = "inset 3px 0 0 #ef4444";
+          } else {
+            row.getElement().style.boxShadow = "inset 3px 0 0 #94a3b8";
+          }
+        },
+        dataFiltered: function(filters, rows){
+          // Empty state toggle
+          const has = rows && rows.length > 0;
+          document.getElementById('emptyState').classList.toggle('hidden', has);
+          updateStats(rows.map(r => r.getData()));
+        },
+      });
+    }
+
+    function wireControls() {
+      quickDate.addEventListener('change', () => {
+        const mode = quickDate.value;
+        if (mode === 'range') {
+          dateRange.disabled = false;
+          datePicker.open();
+        } else {
+          dateRange.disabled = true;
+          datePicker.clear();
+          applyFilters();
+        }
+      });
+      categoryFilter.addEventListener('change', applyFilters);
+      statusFilter.addEventListener('change', applyFilters);
+      btnReset.addEventListener('click', resetFilters);
+      btnRefresh.addEventListener('click', async () => {
+        await loadData();
+        table.replaceData(rawData);
+        buildCategoryFilter();
+        applyFilters();
+      });
+      btnDownloadCSV.addEventListener('click', () => {
+        table.download("csv", `owner-audits-${format(new Date(), 'yyyyMMdd-HHmm')}.csv`);
+      });
+    }
+
+    function resetFilters(){
+      quickDate.value = "all";
+      datePicker.clear();
+      dateRange.disabled = true;
+      categoryFilter.value = "";
+      statusFilter.value = "";
+      applyFilters();
+    }
+
+    function currentDateInterval() {
+      const now = new Date();
+      const todayStart = startOfToday();
+      switch (quickDate.value) {
+        case "today":
+          return { start: todayStart, end: now };
+        case "yesterday": {
+          const start = subDays(todayStart, 1);
+          return { start, end: todayStart };
+        }
+        case "thisWeek":
+          return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
+        case "lastWeek": {
+          const end = subDays(startOfWeek(now, { weekStartsOn: 1 }), 1);
+          const start = startOfWeek(end, { weekStartsOn: 1 });
+          return { start, end };
+        }
+        case "last10":
+          return { start: subDays(todayStart, 9), end: now };
+        case "last20":
+          return { start: subDays(todayStart, 19), end: now };
+        case "last30":
+          return { start: subDays(todayStart, 29), end: now };
+        case "thisMonth":
+          return { start: startOfMonth(now), end: endOfMonth(now) };
+        case "range": {
+          const sel = datePicker.selectedDates || [];
+          if (sel.length === 2) {
+            // Ensure start <= end
+            const start = sel[0] <= sel[1] ? sel[0] : sel[1];
+            const end = sel[1] >= sel[0] ? sel[1] : sel[0];
+            return { start, end };
+          }
+          return null;
+        }
+        default:
+          return null; // all dates
+      }
+    }
+
+    function applyFilters(){
+      if (!table) return;
+      const cat = categoryFilter.value.trim().toLowerCase();
+      const stat = statusFilter.value.trim().toLowerCase();
+      const interval = currentDateInterval();
+
+      table.clearFilter(true); // clear existing
+
+      // Combine filters via a function filter (so we can AND conditions easily)
+      table.setFilter(function(data){
+        // Category
+        if (cat && String(data.category || '').toLowerCase() !== cat) return false;
+
+        // Status
+        if (stat && String(data._statusNorm || '') !== stat) return false;
+
+        // Date
+        if (interval) {
+          const d = data._dateObj;
+          if (!d) return false;
+          // For "today" and "yesterday" we want inclusive end; use isSameDay shortcut when needed
+          if (quickDate.value === 'today') return isSameDay(d, new Date());
+          if (quickDate.value === 'yesterday') return isSameDay(d, subDays(new Date(),1));
+          if (!isWithinInterval(d, interval)) return false;
+        }
+
+        return true;
+      });
+
+      // Empty state handled by dataFiltered; proactively toggle if no data yet
+      const has = (table.getDataCount() > 0);
+      emptyState.classList.toggle('hidden', has);
+    }
+
+    // Simple HTML escaper for option labels
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+        .replaceAll('"','&quot;').replaceAll("'","&#039;");
+    }
+  </script>
+</body>
+</html>

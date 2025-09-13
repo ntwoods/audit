@@ -15,7 +15,6 @@
   <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
   <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
 
-    <!-- date-fns (UMD build with global "dateFns") -->
 
 
   <!-- flatpickr (date picker) -->
@@ -105,9 +104,6 @@
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
-
-    const { parseISO, format, startOfToday, subDays, startOfWeek, endOfWeek,
-            startOfMonth, endOfMonth, isWithinInterval, isSameDay } = dateFns;
 
     let rawData = [];
     let table;

@@ -16,7 +16,7 @@
   <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
 
     <!-- date-fns (UMD build with global "dateFns") -->
-  <script src="https://cdn.jsdelivr.net/npm/date-fns@1.30.1/dist/date_fns.min.js"></script>
+
 
   <!-- flatpickr (date picker) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -137,6 +137,61 @@
       applyFilters();
     }
 
+function parseISO(str) {
+  return new Date(str);
+}
+
+function formatDate(date, fmt = "dd MMM yyyy") {
+  if (!(date instanceof Date) || isNaN(date)) return "";
+  const day = String(date.getDate()).padStart(2, "0");
+  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
+function startOfToday() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function subDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - days);
+  return d;
+}
+
+function startOfWeek(date, weekStartsOn = 1) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff);
+}
+
+function endOfWeek(date, weekStartsOn = 1) {
+  const start = startOfWeek(date, weekStartsOn);
+  return new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59);
+}
+
+function startOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+}
+
+function isWithinInterval(d, {start, end}) {
+  return d >= start && d <= end;
+}
+
+function isSameDay(d1, d2) {
+  return d1.getFullYear() === d2.getFullYear() &&
+         d1.getMonth() === d2.getMonth() &&
+         d1.getDate() === d2.getDate();
+}
+
+    
     async function loadData() {
       errorState.classList.add('hidden');
       try {
@@ -175,7 +230,7 @@
         initialSort: [{ column:"date", dir:"desc" }],
         placeholder: "Loading…",
         columns: [
-          { title: "Date", field: "date", sorter: "date", width: 120, formatter: (cell) => format(parseISO(cell.getValue()), "dd MMM yyyy") },
+          { title: "Date", field: "date", sorter: "date", width: 120, formatter: (cell) => formatDate(parseISO(cell.getValue()), "dd MMM yyyy") },
           { title: "Category", field: "category", widthGrow: 1 },
           { title: "Audit ID", field: "audit_id", width: 180 },
           { title: "Status", field: "status", width: 140, hozAlign:"center", formatter: (cell) => {

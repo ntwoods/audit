@@ -5,21 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Inventory Audit — Owner View</title>
 
-  <!-- Favicon (fixes 404) -->
+  <!-- Favicon -->
   <link rel="icon" href="logo.png" type="image/png">
 
   <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com" defer></script>
 
   <!-- Tabulator -->
   <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
+  <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js" defer></script>
 
   <!-- flatpickr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script>
 
-  
   <style>
     .tabulator .tabulator-header .tabulator-col { background:#f8fafc; }
     .tabulator .tabulator-row:hover { background: #f1f5f9; }
@@ -50,7 +49,7 @@
     </div>
   </header>
 
-  <!-- Controls -->
+  <!-- Filters -->
   <section class="max-w-7xl mx-auto px-4 mt-4 mb-2">
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       <div>
@@ -101,192 +100,94 @@
     <div id="errorState" class="hidden mt-8 text-center text-rose-600 font-medium">Couldn’t load data. Please check the API or try again.</div>
   </main>
 
-  <script>
+  <!-- Dashboard script -->
+  <script defer>
+    // ---- Helper functions for date handling ----
+    function parseISO(str){ return new Date(str); }
+    function formatDate(d){ if(isNaN(d)) return ""; return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
+    function startOfToday(){ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+    function subDays(date,days){ const d=new Date(date); d.setDate(d.getDate()-days); return d; }
+    function startOfWeek(date,{weekStartsOn=1}={}){ const d=new Date(date); const day=(d.getDay()+7-weekStartsOn)%7; d.setDate(d.getDate()-day); return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+    function endOfWeek(date,{weekStartsOn=1}={}){ const start=startOfWeek(date,{weekStartsOn}); return new Date(start.getFullYear(),start.getMonth(),start.getDate()+6,23,59,59); }
+    function startOfMonth(date){ return new Date(date.getFullYear(),date.getMonth(),1); }
+    function endOfMonth(date){ return new Date(date.getFullYear(),date.getMonth()+1,0,23,59,59); }
+    function isWithinInterval(d,{start,end}){ return d>=start && d<=end; }
+    function isSameDay(d1,d2){ return d1.toDateString()===d2.toDateString(); }
+
     const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
 
-    let rawData = [];
-    let table;
-
-    const statTotal = document.getElementById('stat-total');
-    const statOk = document.getElementById('stat-ok');
-    const statRed = document.getElementById('stat-red');
-    const quickDate = document.getElementById('quickDate');
-    const dateRange = document.getElementById('dateRange');
-    const categoryFilter = document.getElementById('categoryFilter');
-    const statusFilter = document.getElementById('statusFilter');
-    const btnReset = document.getElementById('btnReset');
-    const btnRefresh = document.getElementById('btnRefresh');
-    const btnDownloadCSV = document.getElementById('btnDownloadCSV');
-    const emptyState = document.getElementById('emptyState');
-    const errorState = document.getElementById('errorState');
-
-    let datePicker = flatpickr(dateRange, { mode: "range", dateFormat: "d M Y", onChange: applyFilters });
+    let rawData = [], table;
+    const statTotal=document.getElementById('stat-total'), statOk=document.getElementById('stat-ok'), statRed=document.getElementById('stat-red');
+    const quickDate=document.getElementById('quickDate'), dateRange=document.getElementById('dateRange'), categoryFilter=document.getElementById('categoryFilter'), statusFilter=document.getElementById('statusFilter');
+    const btnReset=document.getElementById('btnReset'), btnRefresh=document.getElementById('btnRefresh'), btnDownloadCSV=document.getElementById('btnDownloadCSV');
+    const emptyState=document.getElementById('emptyState'), errorState=document.getElementById('errorState');
+    const datePicker=flatpickr(dateRange,{mode:"range",dateFormat:"d M Y",onChange:applyFilters});
 
     init();
 
-    async function init() {
-      await loadData();
-      buildCategoryFilter();
-      buildTable();
-      wireControls();
-      applyFilters();
-    }
+    async function init(){ await loadData(); buildCategoryFilter(); buildTable(); wireControls(); applyFilters(); }
 
-function parseISO(str) {
-  return new Date(str);
-}
-
-function formatDate(date, fmt = "dd MMM yyyy") {
-  if (!(date instanceof Date) || isNaN(date)) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const month = monthNames[date.getMonth()];
-  const year = date.getFullYear();
-  return `${day} ${month} ${year}`;
-}
-
-function startOfToday() {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function subDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() - days);
-  return d;
-}
-
-function startOfWeek(date, weekStartsOn = 1) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - diff);
-}
-
-function endOfWeek(date, weekStartsOn = 1) {
-  const start = startOfWeek(date, weekStartsOn);
-  return new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6, 23, 59, 59);
-}
-
-function startOfMonth(date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function endOfMonth(date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
-}
-
-function isWithinInterval(d, {start, end}) {
-  return d >= start && d <= end;
-}
-
-function isSameDay(d1, d2) {
-  return d1.getFullYear() === d2.getFullYear() &&
-         d1.getMonth() === d2.getMonth() &&
-         d1.getDate() === d2.getDate();
-}
-
-    
-    async function loadData() {
+    async function loadData(){
       errorState.classList.add('hidden');
-      try {
-        const res = await fetch(API_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        rawData = (json && json.data ? json.data : []).map(r => ({
-          ...r,
-          _statusNorm: String(r.status || '').toLowerCase(),
-          _dateObj: r.date ? parseISO(r.date) : null,
-        }));
+      try{
+        const res=await fetch(API_URL); if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json=await res.json();
+        rawData=(json&&json.data?json.data:[]).map(r=>({...r,_statusNorm:String(r.status||'').toLowerCase(),_dateObj:r.date?parseISO(r.date):null}));
         updateStats(rawData);
-      } catch (e) {
-        console.error(e);
-        errorState.classList.remove('hidden');
-      }
+      }catch(e){ console.error(e); errorState.classList.remove('hidden'); }
     }
 
-    function updateStats(arr) {
-      statTotal.textContent = `Total: ${arr.length}`;
-      statOk.textContent = `No Error: ${arr.filter(x => x._statusNorm === 'noerror').length}`;
-      statRed.textContent = `Tally Adj.: ${arr.filter(x => x._statusNorm === 'tallyadjustment').length}`;
-    }
+    function updateStats(arr){ statTotal.textContent=`Total: ${arr.length}`; statOk.textContent=`No Error: ${arr.filter(x=>x._statusNorm==='noerror').length}`; statRed.textContent=`Tally Adj.: ${arr.filter(x=>x._statusNorm==='tallyadjustment').length}`; }
 
-    function buildCategoryFilter() {
-      const cats = Array.from(new Set(rawData.map(r => r.category).filter(Boolean))).sort();
-      categoryFilter.innerHTML = `<option value="">All Categories</option>` + cats.map(c => `<option>${c}</option>`).join('');
-    }
+    function buildCategoryFilter(){ const cats=[...new Set(rawData.map(r=>r.category).filter(Boolean))].sort(); categoryFilter.innerHTML=`<option value="">All Categories</option>`+cats.map(c=>`<option>${c}</option>`).join(''); }
 
-    function buildTable() {
-      if (table) table.destroy();
-      table = new Tabulator("#table", {
-        data: rawData,
-        layout: "fitColumns",
-        height: "600px",
-        initialSort: [{ column:"date", dir:"desc" }],
-        placeholder: "Loading…",
-        columns: [
-          { title: "Date", field: "date", sorter: "date", width: 120, formatter: (cell) => formatDate(parseISO(cell.getValue()), "dd MMM yyyy") },
-          { title: "Category", field: "category", widthGrow: 1 },
-          { title: "Audit ID", field: "audit_id", width: 180 },
-          { title: "Status", field: "status", width: 140, hozAlign:"center", formatter: (cell) => {
-              const v = String(cell.getValue() || '').toLowerCase();
-              if (v === 'noerror') return `<span class="status-pill status-noerror">No Error</span>`;
-              if (v === 'tallyadjustment') return `<span class="status-pill status-tally">Tally Adjustment</span>`;
-              return v;
-            }
-          },
-          { title: "Audit Remark", field: "audit_remark", widthGrow: 1 },
-          { title: "Audit File", field: "audit_file", formatter: (cell) => cell.getValue() ? `<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>` : "" },
-          { title: "Verification Remark", field: "verification_remark", widthGrow: 1 },
-          { title: "Verification File", field: "verification_file", formatter: (cell) => cell.getValue() ? `<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>` : "" },
-          { title: "Journal Entry Remark", field: "journal_entry_remark", widthGrow: 1 },
-          { title: "Journal Entry File", field: "journal_entry_file", formatter: (cell) => cell.getValue() ? `<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>` : "" },
-          { title: "Accounts Remark", field: "accountsremark", widthGrow: 1 },
-          { title: "Accounts Correction File", field: "accountscorrectionfile", formatter: (cell) => cell.getValue() ? `<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>` : "" },
-        ],
+    function buildTable(){
+      if(table) table.destroy();
+      table=new Tabulator("#table",{ data:rawData, layout:"fitColumns", height:"600px", initialSort:[{column:"date",dir:"desc"}],
+        columns:[
+          {title:"Date",field:"date",sorter:"date",formatter:(cell)=>formatDate(parseISO(cell.getValue()))},
+          {title:"Category",field:"category",widthGrow:1},
+          {title:"Audit ID",field:"audit_id",width:180},
+          {title:"Status",field:"status",formatter:(cell)=>{const v=String(cell.getValue()||'').toLowerCase(); if(v==='noerror') return `<span class="status-pill status-noerror">No Error</span>`; if(v==='tallyadjustment') return `<span class="status-pill status-tally">Tally Adjustment</span>`; return v;}},
+          {title:"Audit Remark",field:"audit_remark"},
+          {title:"Audit File",field:"audit_file",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
+          {title:"Verification Remark",field:"verification_remark"},
+          {title:"Verification File",field:"verification_file",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
+          {title:"Journal Entry Remark",field:"journal_entry_remark"},
+          {title:"Journal Entry File",field:"journal_entry_file",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
+          {title:"Accounts Remark",field:"accountsremark"},
+          {title:"Accounts Correction File",field:"accountscorrectionfile",formatter:(cell)=>cell.getValue()?`<a class="btn" href="${cell.getValue()}" target="_blank">Open</a>`:""},
+        ]
       });
     }
 
-    function wireControls() {
-      quickDate.addEventListener('change', applyFilters);
-      categoryFilter.addEventListener('change', applyFilters);
-      statusFilter.addEventListener('change', applyFilters);
-      btnReset.addEventListener('click', () => { quickDate.value="all"; datePicker.clear(); categoryFilter.value=""; statusFilter.value=""; applyFilters(); });
-      btnRefresh.addEventListener('click', async () => { await loadData(); table.replaceData(rawData); buildCategoryFilter(); applyFilters(); });
-      btnDownloadCSV.addEventListener('click', () => table.download("csv", "owner-audits.csv"));
+    function wireControls(){
+      quickDate.addEventListener('change',applyFilters);
+      categoryFilter.addEventListener('change',applyFilters);
+      statusFilter.addEventListener('change',applyFilters);
+      btnReset.addEventListener('click',()=>{quickDate.value="all";datePicker.clear();categoryFilter.value="";statusFilter.value="";applyFilters();});
+      btnRefresh.addEventListener('click',async()=>{await loadData();table.replaceData(rawData);buildCategoryFilter();applyFilters();});
+      btnDownloadCSV.addEventListener('click',()=>table.download("csv","owner-audits.csv"));
     }
 
-    function currentDateInterval() {
-      const now = new Date();
-      switch (quickDate.value) {
-        case "today": return { start: startOfToday(), end: now };
-        case "yesterday": return { start: subDays(startOfToday(),1), end: startOfToday() };
-        case "thisWeek": return { start: startOfWeek(now,{weekStartsOn:1}), end: endOfWeek(now,{weekStartsOn:1}) };
-        case "lastWeek": { const end=subDays(startOfWeek(now,{weekStartsOn:1}),1); return { start:startOfWeek(end,{weekStartsOn:1}), end }; }
-        case "last10": return { start: subDays(startOfToday(),9), end: now };
-        case "last20": return { start: subDays(startOfToday(),19), end: now };
-        case "last30": return { start: subDays(startOfToday(),29), end: now };
-        case "thisMonth": return { start: startOfMonth(now), end: endOfMonth(now) };
-        default: return null;
-      }
-    }
+    function currentDateInterval(){ const now=new Date(); switch(quickDate.value){
+      case "today": return {start:startOfToday(),end:now};
+      case "yesterday": return {start:subDays(startOfToday(),1),end:startOfToday()};
+      case "thisWeek": return {start:startOfWeek(now,{weekStartsOn:1}),end:endOfWeek(now,{weekStartsOn:1})};
+      case "lastWeek": {const end=subDays(startOfWeek(now,{weekStartsOn:1}),1);return {start:startOfWeek(end,{weekStartsOn:1}),end};}
+      case "last10": return {start:subDays(startOfToday(),9),end:now};
+      case "last20": return {start:subDays(startOfToday(),19),end:now};
+      case "last30": return {start:subDays(startOfToday(),29),end:now};
+      case "thisMonth": return {start:startOfMonth(now),end:endOfMonth(now)};
+      default: return null;}}
 
-    function applyFilters() {
-      if (!table) return;
-      const cat = categoryFilter.value.trim().toLowerCase();
-      const stat = statusFilter.value.trim().toLowerCase();
-      const interval = currentDateInterval();
-      table.setFilter((data) => {
-        if (cat && String(data.category || '').toLowerCase() !== cat) return false;
-        if (stat && String(data._statusNorm || '') !== stat) return false;
-        if (interval) {
-          const d = data._dateObj;
-          if (!d) return false;
-          if (!isWithinInterval(d, interval)) return false;
-        }
-        return true;
-      });
-      emptyState.classList.toggle('hidden', table.getDataCount() > 0);
+    function applyFilters(){
+      if(!table) return;
+      const cat=categoryFilter.value.trim().toLowerCase();
+      const stat=statusFilter.value.trim().toLowerCase();
+      const interval=currentDateInterval();
+      table.setFilter((data)=>{ if(cat&&String(data.category||'').toLowerCase()!==cat) return false; if(stat&&String(data._statusNorm||'')!==stat) return false; if(interval){const d=data._dateObj;if(!d) return false;if(!isWithinInterval(d,interval)) return false;} return true; });
+      emptyState.classList.toggle('hidden',table.getDataCount()>0);
     }
   </script>
 </body>

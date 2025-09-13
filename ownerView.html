@@ -13,7 +13,17 @@
   <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
 
   <!-- date-fns (date utils) -->
-  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/parseISO/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/format/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/startOfToday/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/subDays/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/startOfWeek/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/endOfWeek/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/startOfMonth/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/endOfMonth/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/isWithinInterval/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/isSameDay/index.js"></script>
+
 
   <!-- flatpickr (date range) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -132,9 +142,6 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
 
     // ======= Helpers =======
-    const {
-      parseISO, format, startOfToday, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, isSameDay
-    } = dateFns;
 
     const fmtDate = (iso) => {
       try {

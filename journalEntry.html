@@ -157,50 +157,46 @@
       modal.style.display = "flex";
     }
 
-    document.getElementById("journalForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const auditId = document.getElementById("auditIdField").value;
-      const remark = document.getElementById("journalRemark").value;
-      const files = document.getElementById("journalFiles").files;
+  document.getElementById("journalForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const auditId = document.getElementById("auditIdField").value;
+    const remark = document.getElementById("journalRemark").value;
+    const files = document.getElementById("journalFiles").files;
 
-      const fileData = [];
-      for (let f of files) {
-        const base64 = await toBase64(f);
-        fileData.push({ name: f.name, data: base64 });
-      }
-
-      const payload = {
-        action: "journalEntry",
-        audit_id: auditId,
-        journalRemark: remark,
-        files: fileData
-      };
-
-      try {
-        const res = await fetch(API_URL, {
-          method: "POST",
-          mode: "no-cors",
-          body: JSON.stringify(payload)
-        });
-        alert("Submitted successfully");
-        modal.style.display = "none";
-        fetchData(); // refresh
-      } catch (err) {
-        console.error(err);
-        alert("Error submitting journal entry");
-      }
-    });
-
-    function toBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+    const fileData = [];
+    for (let f of files) {
+      const base64 = await toBase64(f);
+      fileData.push({ name: f.name, mimeType: f.type, base64: base64 });
     }
 
+    const payload = {
+      action: "journalEntry",
+      audit_id: auditId,
+      journalRemark: remark,
+      files: fileData
+    };
+
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const out = await res.json();
+    alert(out.message || "Submitted successfully");
+    modal.style.display = "none";
     fetchData();
-  </script>
+  });
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  fetchData();
+</script>
 </body>
 </html>

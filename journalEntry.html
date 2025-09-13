@@ -178,11 +178,11 @@
 
     const res = await fetch(API_URL, {
       method: "POST",
+      mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
-    const out = await res.json();
-    alert(out.message || "Submitted successfully");
+    alert("Submitted successfully");
     modal.style.display = "none";
     fetchData();
   });

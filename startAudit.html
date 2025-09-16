@@ -221,7 +221,6 @@
       }
     }
   </style>
-
 </head>
 <body>
   <header>
@@ -239,7 +238,7 @@
     <div id="empty" class="empty" style="display:none;margin-top:12px">No pending audits found.</div>
   </main>
 
-  <!-- modal markup -->
+  <!-- Modal -->
   <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-hidden="true">
     <div class="modal" role="document">
       <header>
@@ -294,9 +293,9 @@
       const fileList = document.getElementById('fileList');
       const modalStatus = document.getElementById('modalStatus');
 
-      let currentAction = ''; // "error" or "noError"
+      let currentAction = ''; 
       let currentCard = null;
-      let timers = {}; // store interval ids to clear if needed
+      let timers = {};
 
       function fetchPending(){
         cardsEl.innerHTML = '';
@@ -307,13 +306,13 @@
           }
           buildCards(res.data);
         }).catch(err=>{
-          emptyEl.textContent = 'Failed to fetch. Check API URL or deployment.'; emptyEl.style.display = 'block';
+          emptyEl.textContent = 'Failed to fetch. Check API URL or deployment.'; 
+          emptyEl.style.display = 'block';
           console.error(err);
         });
       }
 
       function fmtDateISOtoDisplay(isoDateStr){
-        // expect iso like "2025-09-05" or "2025-09-05T..." or a displayed date string
         const d = new Date(isoDateStr);
         if(isNaN(d)) return isoDateStr;
         const dd = String(d.getDate()).padStart(2,'0');
@@ -324,11 +323,9 @@
 
       function buildCards(data){
         data.forEach(item=>{
-          // headers from the sheet are used as keys.
-          // expected keys: audit_id, date, category, timestamp etc
-          const auditId = item.audit_id || item['audit_id'] || item['Audit ID'] || item['audit id'] || item['audit_id'] || item.AUDIT_ID || item['audit_id'];
-          const dateStr = item.date || item.Date || item['date'];
-          const category = item.category || item.Category || item['category'];
+          const auditId = item.audit_id || item['Audit ID'];
+          const dateStr = item.date || item.Date;
+          const category = item.category || item.Category;
           const card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = `
@@ -347,32 +344,26 @@
               <button class="noerr" data-action="noError">Error Not Found</button>
             </div>
           `;
-          // attach data attributes
           card.dataset.auditId = auditId || '';
           card.dataset.category = category || '';
           card.dataset.date = dateStr || '';
           cardsEl.appendChild(card);
 
-          // bind buttons
           card.querySelectorAll('button').forEach(btn=>{
             btn.addEventListener('click', ()=> openModal(card, btn.dataset.action));
           });
 
-          // setup countdown
           const cdEl = card.querySelector('.countdown');
           startCountdown(cdEl, dateStr);
         });
       }
 
       function startCountdown(el, dateStr){
-        // compute target as dateStr at 18:00 local time
-        // parse date string robustly
         let target;
         if(!dateStr) {
           el.textContent = 'No deadline';
           return;
         }
-        // If dateStr contains time, ignore and set time to 18:00
         const parsed = new Date(dateStr);
         if(isNaN(parsed)){
           el.textContent = 'Invalid date';
@@ -399,18 +390,15 @@
           parts.push(String(mins).padStart(2,'0') + 'm');
           parts.push(String(secs).padStart(2,'0') + 's');
           el.textContent = parts.join(' ');
-          // will keep live automatically
         }
         update();
         const id = setInterval(update, 1000);
-        // store so we can clear if needed
         if(!timers[target]) timers[target] = [];
         timers[target].push(id);
       }
 
-      // Modal interactions
       function openModal(cardEl, action){
-        currentAction = action; // "error" or "noError"
+        currentAction = action;
         currentCard = cardEl;
         mAuditId.textContent = cardEl.dataset.auditId || '(unknown)';
         mCategory.textContent = cardEl.dataset.category || '(unknown)';
@@ -441,38 +429,42 @@
 
       modalSubmit.addEventListener('click', async ()=>{
         const remark = remarkInput.value.trim();
+        const files = Array.from(fileInput.files || []);
+
         if(!remark){
-          modalStatus.textContent = 'Please enter remark.';
+          modalStatus.textContent = 'Please enter a remark before submitting.';
           return;
         }
+        if(files.length === 0){
+          modalStatus.textContent = 'Please attach at least one file.';
+          return;
+        }
+
         modalStatus.textContent = 'Preparing files...';
         modalSubmit.disabled = true;
         modalCancel.disabled = true;
 
-        // collect files -> base64
-        const files = Array.from(fileInput.files || []);
         const filesPayload = await Promise.all(files.map(f => fileToBase64Object(f)));
 
-        // prepare payload
         const payload = {
           action: currentAction === 'error' ? 'error' : 'noError',
           audit_id: currentCard.dataset.auditId,
           category: currentCard.dataset.category,
           remark: remark,
-          files: filesPayload // each { name, mimeType, base64 }
+          files: filesPayload 
         };
 
         modalStatus.textContent = 'Uploading...';
 
         try {
-          const resp = await fetch(API_URL, {
+          await fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-            modalStatus.textContent = 'Submitted successfully.';
-            setTimeout(()=> closeModal(), 900);
+          modalStatus.textContent = 'Submitted successfully.';
+          setTimeout(()=> closeModal(), 900);
         } catch(err){
           console.error(err);
           modalStatus.textContent = 'Network error: ' + (err.message || err);
@@ -481,12 +473,11 @@
           modalCancel.disabled = false;
         }
       });
-      // utility - convert File -> {name, mimeType, base64}
+
       function fileToBase64Object(file){
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = function(e){
-            // e.target.result = data:[<mediatype>][;base64],<data>
             const dataURL = e.target.result;
             const comma = dataURL.indexOf(',');
             const base64 = dataURL.substring(comma+1);
@@ -497,10 +488,7 @@
         });
       }
 
-      // events
       refreshBtn.addEventListener('click', fetchPending);
-
-      // initial load
       fetchPending();
     })();
   </script>

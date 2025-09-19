@@ -122,6 +122,7 @@
           body: JSON.stringify(payload)
         });
         console.log("Journal Entry sent:", payload);
+        fetchData();
       } catch (err) {
         console.error("Failed to send journal entry:", err);
       }

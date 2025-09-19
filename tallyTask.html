@@ -140,6 +140,7 @@
           body: JSON.stringify(payload)
         });
         console.log("Tally Adjustment sent:", payload);
+        fetchVerifiedEntries();        
       } catch (err) {
         console.error("Failed to send tally adjustment:", err);
       }

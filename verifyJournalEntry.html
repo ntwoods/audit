@@ -140,6 +140,7 @@
           body: JSON.stringify(payload)
         });
         console.log("Verify Journal Entry sent:", payload);
+        fetchJournalEntries();
       } catch (err) {
         console.error("Failed to send verify journal entry:", err);
       }

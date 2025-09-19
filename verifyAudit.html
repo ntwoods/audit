@@ -192,7 +192,7 @@
         function update(){
           const now = new Date();
           let d = target - now;
-          if(d<=0){ el.textContent='Deadline reached'; return; }
+          if(d<=0){ el.textContent='Overdue'; return; }
           const h = Math.floor(d/(1000*60*60)); d -= h*(1000*60*60);
           const m = Math.floor(d/(1000*60)); d -= m*(1000*60);
           const s = Math.floor(d/1000);

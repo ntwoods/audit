@@ -215,8 +215,12 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
+          alert(`✅ ${action} sent successfully!`);
+
+          // Refresh page after 1 second
+          setTimeout(() => location.reload(), 1000);          
           console.log('Action sent:', payload);
-          fetchErrors();
+
         }catch(err){
           console.error('Failed to send action:', err);
         }

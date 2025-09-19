@@ -139,8 +139,11 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
+        alert(`✅ ${action} sent successfully!`);
+
+        // Refresh page after 1 second
+        setTimeout(() => location.reload(), 1000);
         console.log("Tally Adjustment sent:", payload);
-        fetchVerifiedEntries();        
       } catch (err) {
         console.error("Failed to send tally adjustment:", err);
       }

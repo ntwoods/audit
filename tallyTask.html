@@ -74,7 +74,7 @@
   </style>
 </head>
 <body>
-  <h1>Verified Journal Entries</h1>
+  <h1>Final Settlement</h1>
   <div class="card-container" id="cardsContainer"></div>
 
   <script>
@@ -110,7 +110,7 @@
           <h3>${entry.category}</h3>
           <p><strong>Audit ID:</strong> ${entry.audit_id}</p>
           <p><strong>Date:</strong> ${formatDate(entry.date)}</p>
-          <button class="btn" onclick="sendTallyAdjustment('${entry.audit_id}','${entry.category}')">Tally Work Done</button>
+          <button class="btn" onclick="sendTallyAdjustment('${entry.audit_id}','${entry.category}')">Work Done</button>
         `;
         container.appendChild(card);
       });
@@ -125,7 +125,7 @@
       });
     }
 
-    async function sendTallyAdjustment(auditId, category) {
+    async function sendTallyAdjustment(auditId, category, action) {
       const payload = {
         action: "tallyadjustment",
         audit_id: auditId,

@@ -160,7 +160,7 @@
                     <div class="category">${auditId || '—'}</div>                    
                   </div>
                   <div style="text-align:right">
-                    <div class="badge">${dateStr || ''}</div>
+                  <div class="badge">${dateStr ? new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : ''}</div>
                   </div>
                 </div>
                 <div class="countdown" data-target="${dateStr || ''}">Loading timer...</div>

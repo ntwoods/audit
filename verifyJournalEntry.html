@@ -139,8 +139,12 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
+      alert(`✅ ${action} sent successfully!`);
+
+    // Refresh page after 1 second
+      setTimeout(() => location.reload(), 1000);        
         console.log("Verify Journal Entry sent:", payload);
-        fetchJournalEntries();
+      
       } catch (err) {
         console.error("Failed to send verify journal entry:", err);
       }

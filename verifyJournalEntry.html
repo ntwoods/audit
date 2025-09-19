@@ -125,7 +125,7 @@
       });
     }
 
-    async function verifyJournalEntry(auditId, category) {
+    async function verifyJournalEntry(auditId, category, action) {
       const payload = {
         action: "verifyjournalentry",
         audit_id: auditId,

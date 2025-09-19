@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tally Work Done</title>
+  <style>
+    :root {
+      --bg: #f8fbff;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --accent: #0b76ef;
+      --accent-light: #e6f0ff;
+      --accent-dark: #084c9b;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(180deg, var(--bg), #fff);
+      margin: 0;
+      padding: 20px;
+      color: #111827;
+    }
+    h1 {
+      text-align: center;
+      color: var(--accent-dark);
+      margin-bottom: 20px;
+    }
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 320px));
+      justify-content: center;
+      gap: 20px;
+    }
+    .card {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 320px;
+      min-height: 180px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+    .card h3 {
+      margin: 0 0 10px 0;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .card p {
+      margin: 4px 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .btn {
+      margin-top: 15px;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+    .btn:hover {
+      background: var(--accent-dark);
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+  <h1>Verified Journal Entries</h1>
+  <div class="card-container" id="cardsContainer"></div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec";
+
+    async function fetchVerifiedEntries() {
+      try {
+        const res = await fetch(`${API_URL}?action=verifiedjournalentry`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          renderCards(json.data);
+        } else {
+          document.getElementById("cardsContainer").innerHTML = "<p>No verified journal entries found.</p>";
+        }
+      } catch (err) {
+        console.error("Error fetching verified journal entries:", err);
+      }
+    }
+
+    function renderCards(entries) {
+      const container = document.getElementById("cardsContainer");
+      container.innerHTML = "";
+
+      if (!entries || entries.length === 0) {
+        container.innerHTML = "<p>No verified journal entries found.</p>";
+        return;
+      }
+
+      entries.forEach(entry => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <h3>${entry.category}</h3>
+          <p><strong>Audit ID:</strong> ${entry.audit_id}</p>
+          <p><strong>Date:</strong> ${formatDate(entry.date)}</p>
+          <button class="btn" onclick="sendTallyAdjustment('${entry.audit_id}','${entry.category}')">Tally Work Done</button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "2-digit"
+      });
+    }
+
+    async function sendTallyAdjustment(auditId, category) {
+      const payload = {
+        action: "tallyadjustment",
+        audit_id: auditId,
+        category: category
+      };
+
+      try {
+        await fetch(API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        console.log("Tally Adjustment sent:", payload);
+      } catch (err) {
+        console.error("Failed to send tally adjustment:", err);
+      }
+    }
+
+    fetchVerifiedEntries();
+  </script>
+</body>
+</html>

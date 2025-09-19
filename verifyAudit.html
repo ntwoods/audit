@@ -216,6 +216,7 @@
             body: JSON.stringify(payload)
           });
           console.log('Action sent:', payload);
+          fetchErrors();
         }catch(err){
           console.error('Failed to send action:', err);
         }

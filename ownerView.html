@@ -4,23 +4,8 @@
   <meta charset="utf-8" />
   <title>Audit Management Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  
-  <script src="luxon.js" defer></script>  
-    <!-- Tabulator (table library) -->
-  <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
-
-  <!-- Day.js for timezone-aware formatting (IST) -->
-  <script src="https://unpkg.com/dayjs@1.11.13/dayjs.min.js"></script>
-  <script src="https://unpkg.com/dayjs@1.11.13/plugin/utc.js"></script>
-  <script src="https://unpkg.com/dayjs@1.11.13/plugin/timezone.js"></script>
-  <script>
-    dayjs.extend(dayjs_plugin_utc);
-    dayjs.extend(dayjs_plugin_timezone);
-    dayjs.tz.setDefault("Asia/Kolkata");
-  </script>
-
   <style>
-    :root{
+    :root {
       --blue-50:#f5f9ff;
       --blue-100:#e8f0ff;
       --blue-200:#d6e4ff;
@@ -34,402 +19,236 @@
       --radius: 14px;
     }
 
-    *{box-sizing:border-box}
-    body{
+    * { box-sizing:border-box }
+    body {
       margin:0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;
       background: linear-gradient(180deg,var(--blue-50), #ffffff 40%);
       color:var(--text);
     }
-
-    .wrap{
-      max-width:1200px;
-      margin:0 auto;
-      padding:24px 16px 48px;
-    }
-
-    .header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:16px;
-      margin-bottom:16px;
-      flex-wrap:wrap;
-    }
-    .title{
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
-    .logo{
+    .wrap { max-width:1200px; margin:0 auto; padding:24px 16px 48px; }
+    .header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px; gap:16px; }
+    .title { display:flex; align-items:center; gap:12px; }
+    .logo {
       width:42px;height:42px;border-radius:12px;
       background: linear-gradient(135deg,var(--blue-600),var(--blue-400));
-      display:grid;place-items:center;color:#fff;font-weight:700;
-      box-shadow: var(--shadow);
+      display:grid;place-items:center;color:#fff;font-weight:700;box-shadow: var(--shadow);
     }
-    h1{
-      font-size:22px;margin:0;color:var(--blue-800);
-      letter-spacing:.2px;
-    }
-    .sub{
-      margin:0;color:var(--muted);font-size:13px;
+    h1 { font-size:22px;margin:0;color:var(--blue-800); }
+    .sub { margin:0;color:var(--muted);font-size:13px; }
+
+    .panel {
+      background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:14px; margin-bottom:16px; border:1px solid var(--blue-100);
     }
 
-    .panel{
-      background:var(--white);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:14px;
-      margin-bottom:16px;
-      border:1px solid var(--blue-100);
+    .filters { display:grid; grid-template-columns: repeat(6, minmax(120px,1fr)); gap:10px; }
+    @media (max-width: 980px){ .filters{ grid-template-columns: repeat(2, 1fr);} }
+    @media (max-width: 520px){ .filters{ grid-template-columns: 1fr;} }
+    label{ font-size:12px;color:var(--muted);margin:4px 0 6px 2px;display:block; }
+    select, input[type="date"] {
+      width:100%; padding:10px 12px; border:1px solid var(--blue-200); border-radius:10px;
+      background:#fff; outline:none;
     }
-
-    .filters{
-      display:grid;
-      grid-template-columns: repeat(6, minmax(120px,1fr));
-      gap:10px;
+    select:focus,input[type="date"]:focus {
+      border-color:var(--blue-600); box-shadow:0 0 0 3px rgba(47,95,215,0.15);
     }
-    @media (max-width: 980px){
-      .filters{ grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 520px){
-      .filters{ grid-template-columns: 1fr; }
-    }
-
-    label{
-      font-size:12px;color:var(--muted);display:block;margin:4px 0 6px 2px;
-    }
-    select, input[type="date"]{
-      width:100%;
-      padding:10px 12px;
-      border:1px solid var(--blue-200);
-      border-radius:10px;
-      background:#fff;
-      color:var(--text);
-      outline:none;
-      transition:border-color .2s, box-shadow .2s;
-    }
-    select:focus, input[type="date"]:focus{
-      border-color:var(--blue-600);
-      box-shadow:0 0 0 3px rgba(47,95,215,0.15);
-    }
-
     .btns{ display:flex; gap:10px; align-items:end; }
-    .btn{
-      appearance:none; border:0; padding:10px 14px; border-radius:10px;
-      font-weight:600; cursor:pointer;
+    .btn {
+      border:0; padding:10px 14px; border-radius:10px;
+      font-weight:600; cursor:pointer; white-space:nowrap;
       background:var(--blue-600); color:#fff; box-shadow:var(--shadow);
-      transition: transform .06s ease, box-shadow .2s ease, background .2s ease;
-      white-space:nowrap;
     }
-    .btn.secondary{ background:#fff; color:var(--blue-800); border:1px solid var(--blue-200); }
-    .btn.ghost{ background:transparent; color:var(--blue-800); border:1px dashed var(--blue-400); }
-    .btn:hover{ transform: translateY(-1px); }
-    .btn:active{ transform: translateY(0); }
-
-    /* Table container */
-    .table-card{
-      background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
-      border:1px solid var(--blue-100);
-    }
-
-    /* Tabulator theming */
-    .tabulator{
-      border:none;
-      border-radius:var(--radius);
-    }
-    .tabulator-header{
-      border-bottom:1px solid var(--blue-100);
-      background:linear-gradient(180deg,#f7faff 0%, #f0f5ff 100%);
-    }
-    .tabulator-col{
-      border-right:1px solid #eaf0ff;
-      color:#14325d; font-weight:600;
-    }
-    .tabulator-row{
-      border-bottom:1px solid #f1f4fb;
-    }
-    .tabulator-row.tabulator-selected{
-      background:#e8f0ff;
-    }
-    .badge{
-      display:inline-block; padding:4px 8px; border-radius:999px;
-      font-size:12px; font-weight:700;
-    }
-    .status-pending{ background:#fff5e6; color:#9a6b00; border:1px solid #ffe3b3; }
-    .status-verifyjournalentry{ background:#e6f7ff; color:#005a8e; border:1px solid #bfe7ff; }
-    .status-tallyadjustment{ background:#e8fff1; color:#116b3a; border:1px solid #c9f5db; }
-    .status-default{ background:#edf2ff; color:#2f5fd7; border:1px solid #dbe6ff; }
-
-    .muted{ color: var(--muted); font-size:12px; }
-    .foot{
-      display:flex; justify-content:space-between; align-items:center; gap:12px;
-      margin-top:10px; color:var(--muted); font-size:12px;
-    }
-    .error{
-      background:#fff1f2; border:1px solid #fecdd3; color:#b91c1c;
-      padding:10px 12px; border-radius:10px; margin-top:10px;
-    }
+    .btn.secondary{ background:#fff;color:var(--blue-800);border:1px solid var(--blue-200); }
+    .btn.ghost{ background:transparent;color:var(--blue-800);border:1px dashed var(--blue-400);}
+    .table-card { background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--blue-100); }
+    table { width:100%; border-collapse:collapse; }
+    thead { background:linear-gradient(180deg,#f7faff 0%, #f0f5ff 100%); }
+    th, td { padding:8px 12px; border-bottom:1px solid #eaf0ff; text-align:left; font-size:14px; }
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;}
+    .status-pending{background:#fff5e6;color:#9a6b00;border:1px solid #ffe3b3;}
+    .status-verifyjournalentry{background:#e6f7ff;color:#005a8e;border:1px solid #bfe7ff;}
+    .status-tallyadjustment{background:#e8fff1;color:#116b3a;border:1px solid #c9f5db;}
+    .status-default{background:#edf2ff;color:#2f5fd7;border:1px solid #dbe6ff;}
+    .foot{display:flex;justify-content:space-between;padding:8px 12px;font-size:12px;color:var(--muted);}
+    .error{background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;padding:10px 12px;border-radius:10px;margin-top:10px;}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="header">
-      <div class="title">
-        <div class="logo">AM</div>
-        <div>
-          <h1>Audit Management — Glance Dashboard</h1>
-          <p class="sub">IST times • Live filters • CSV export of filtered rows</p>
-        </div>
-      </div>
-      <div class="btns">
-        <button id="refreshBtn" class="btn secondary" title="Reload from API">Refresh</button>
-        <button id="downloadBtn" class="btn" title="Download filtered rows as CSV">Download CSV</button>
+<div class="wrap">
+  <div class="header">
+    <div class="title">
+      <div class="logo">AM</div>
+      <div>
+        <h1>Audit Management — Glance Dashboard</h1>
+        <p class="sub">IST times • Live filters • CSV export</p>
       </div>
     </div>
-
-    <div class="panel">
-      <div class="filters">
-        <div>
-          <label for="categoryFilter">Category</label>
-          <select id="categoryFilter">
-            <option value="">All Categories</option>
-          </select>
-        </div>
-        <div>
-          <label for="statusFilter">Status</label>
-          <select id="statusFilter">
-            <option value="">All Statuses</option>
-          </select>
-        </div>
-        <div>
-          <label for="dateFrom">Date From (Base Date)</label>
-          <input type="date" id="dateFrom" />
-        </div>
-        <div>
-          <label for="dateTo">Date To (Base Date)</label>
-          <input type="date" id="dateTo" />
-        </div>
-        <div class="btns">
-          <button id="applyFilters" class="btn">Apply Filters</button>
-          <button id="clearFilters" class="btn ghost">Clear</button>
-        </div>
-      </div>
-      <div id="errorBox" class="error" style="display:none;"></div>
-    </div>
-
-    <div class="table-card">
-      <div id="auditTable"></div>
-      <div class="foot">
-        <span id="rowCount" class="muted">Rows: 0</span>
-        <span id="lastUpdated" class="muted">Last updated: —</span>
-      </div>
+    <div class="btns">
+      <button id="refreshBtn" class="btn secondary">Refresh</button>
+      <button id="downloadBtn" class="btn">Download CSV</button>
     </div>
   </div>
 
-  <script>
-    // ====== CONFIG ======
-    const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
+  <div class="panel">
+    <div class="filters">
+      <div>
+        <label for="categoryFilter">Category</label>
+        <select id="categoryFilter"><option value="">All</option></select>
+      </div>
+      <div>
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter"><option value="">All</option></select>
+      </div>
+      <div>
+        <label for="dateFrom">Date From</label>
+        <input type="date" id="dateFrom" />
+      </div>
+      <div>
+        <label for="dateTo">Date To</label>
+        <input type="date" id="dateTo" />
+      </div>
+      <div class="btns">
+        <button id="applyFilters" class="btn">Apply</button>
+        <button id="clearFilters" class="btn ghost">Clear</button>
+      </div>
+    </div>
+    <div id="errorBox" class="error" style="display:none;"></div>
+  </div>
 
-    // ====== HELPERS ======
-    const fmtDate = (iso) => {
-      if(!iso) return "";
-      const d = dayjs.tz(iso);
-      if(!d.isValid()) return "";
-      return d.format("DD-MMM-YY"); // dd-MMM-yy
-    };
-    const fmtDateTime = (iso) => {
-      if(!iso) return "";
-      const d = dayjs.tz(iso);
-      if(!d.isValid()) return "";
-      return d.format("DD-MMM-YY HH:mm:ss"); // dd-MMM-yy HH:mm:ss
-    };
-    const normalizeStatusClass = (s) => {
-      if(!s) return "status-default";
-      const k = String(s).toLowerCase();
-      if(k.includes("pending")) return "status-pending";
-      if(k.includes("verify")) return "status-verifyjournalentry";
-      if(k.includes("tally")) return "status-tallyadjustment";
-      return "status-default";
-    };
+  <div class="table-card">
+    <table id="auditTable">
+      <thead>
+        <tr>
+          <th>Date</th><th>Category</th><th>Status</th><th>Audit Date & Time</th><th>Ac Timestamp</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="foot">
+      <span id="rowCount">Rows: 0</span>
+      <span id="lastUpdated">Last updated: —</span>
+    </div>
+  </div>
+</div>
 
-    // ====== STATE ======
-    let table;
-    let rawRows = [];   // API raw
-    let tableRows = []; // transformed rows for Tabulator
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
 
-    // ====== UI Elements ======
-    const $category = document.getElementById("categoryFilter");
-    const $status = document.getElementById("statusFilter");
-    const $dateFrom = document.getElementById("dateFrom");
-    const $dateTo = document.getElementById("dateTo");
-    const $errorBox = document.getElementById("errorBox");
-    const $rowCount = document.getElementById("rowCount");
-    const $lastUpdated = document.getElementById("lastUpdated");
-    const $refresh = document.getElementById("refreshBtn");
-    const $download = document.getElementById("downloadBtn");
-    const $applyFilters = document.getElementById("applyFilters");
-    const $clearFilters = document.getElementById("clearFilters");
+let rawRows = [];
 
-    // ====== TABLE SETUP ======
-    function initTable(){
-      table = new Tabulator("#auditTable", {
-        height: "600px",
-        layout: "fitColumns",
-        reactiveData: true,
-        placeholder: "No records found",
-        pagination: true,
-        paginationSize: 20,
-        paginationSizeSelector: [10,20,50,100],
-        columns: [
-          { title: "Date", field: "date_fmt", width: 120, headerHozAlign:"left", hozAlign:"left",
-            tooltip: (cell)=> cell.getRow().getData().date_raw || "",
-          },
-          { title: "Category", field: "category", headerHozAlign:"left", hozAlign:"left", minWidth:180 },
-          { title: "Status", field: "status", width:160, formatter: (cell)=>{
-              const v = cell.getValue() || "";
-              const cls = normalizeStatusClass(v);
-              return `<span class="badge ${cls}">${v || "-"}</span>`;
-            }
-          },
-          { title: "Audit Date & Time", field: "audit_dt", minWidth:180,
-            tooltip: (cell)=> cell.getRow().getData().audit_raw || "",
-          },
-          { title: "Ac Timestamp", field: "ac_ts", minWidth:180,
-            tooltip: (cell)=> cell.getRow().getData().ac_raw || "",
-          },
-          // Hidden but useful fields for downstream or debugging:
-          { title: "Audit ID", field: "audit_id", visible:false },
-        ],
-        dataLoaded: updateCounts,
-        dataFiltered: updateCounts,
-      });
-    }
+function fmtDate(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if(isNaN(d)) return "";
+  return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"});
+}
+function fmtDateTime(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if(isNaN(d)) return "";
+  return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"})+" "+
+         d.toLocaleTimeString("en-GB",{hour12:false});
+}
+function normalizeStatusClass(s){
+  if(!s) return "status-default";
+  const k = s.toLowerCase();
+  if(k.includes("pending")) return "status-pending";
+  if(k.includes("verify")) return "status-verifyjournalentry";
+  if(k.includes("tally")) return "status-tallyadjustment";
+  return "status-default";
+}
 
-    function updateCounts(){
-      const count = table.getDataCount("active"); // filtered count
-      $rowCount.textContent = `Rows: ${count}`;
-    }
+function renderTable(rows){
+  const tbody = document.querySelector("#auditTable tbody");
+  tbody.innerHTML = rows.map(r=>{
+    return `<tr>
+      <td>${fmtDate(r.date)}</td>
+      <td>${r.category||""}</td>
+      <td><span class="badge ${normalizeStatusClass(r.status)}">${r.status||"-"}</span></td>
+      <td>${fmtDateTime(r.audittimestamp)}</td>
+      <td>${fmtDateTime(r.accountssettlementtimestamp)}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("rowCount").textContent = "Rows: "+rows.length;
+}
 
-    // ====== DATA TRANSFORM ======
-    function transformRows(items){
-      return items.map(r => {
-        const dateFmt = fmtDate(r.date);
-        const auditFmt = r.audittimestamp ? fmtDateTime(r.audittimestamp) : "";
-        const acFmt = r.accountssettlementtimestamp ? fmtDateTime(r.accountssettlementtimestamp) : "";
-        return {
-          audit_id: r.audit_id || "",
-          category: r.category || "",
-          status: r.status || "",
-          date_fmt: dateFmt,
-          date_raw: r.date || "",
-          audit_dt: auditFmt,
-          audit_raw: r.audittimestamp || "",
-          ac_ts: acFmt,
-          ac_raw: r.accountssettlementtimestamp || "",
-        };
-      });
-    }
+function populateFilters(rows){
+  const cats = [...new Set(rows.map(r=>r.category).filter(Boolean))].sort();
+  const stats = [...new Set(rows.map(r=>r.status).filter(Boolean))].sort();
+  document.getElementById("categoryFilter").innerHTML = "<option value=''>All</option>"+cats.map(c=>`<option>${c}</option>`).join("");
+  document.getElementById("statusFilter").innerHTML = "<option value=''>All</option>"+stats.map(s=>`<option>${s}</option>`).join("");
+}
 
-    // ====== FILTERING LOGIC ======
-    function applyFilters(){
-      const cat = $category.value || "";
-      const stat = $status.value || "";
-      const df = $dateFrom.value ? dayjs.tz($dateFrom.value + "T00:00:00") : null;
-      const dt = $dateTo.value ? dayjs.tz($dateTo.value + "T23:59:59") : null;
+function applyFilters(){
+  let filtered = [...rawRows];
+  const cat = document.getElementById("categoryFilter").value;
+  const stat = document.getElementById("statusFilter").value;
+  const df = document.getElementById("dateFrom").value;
+  const dt = document.getElementById("dateTo").value;
+  if(cat) filtered = filtered.filter(r=>r.category===cat);
+  if(stat) filtered = filtered.filter(r=>r.status===stat);
+  if(df){
+    const from = new Date(df+"T00:00:00");
+    filtered = filtered.filter(r=>new Date(r.date)>=from);
+  }
+  if(dt){
+    const to = new Date(dt+"T23:59:59");
+    filtered = filtered.filter(r=>new Date(r.date)<=to);
+  }
+  renderTable(filtered);
+}
 
-      // Clear existing filters first
-      table.clearFilter(true);
+function clearFilters(){
+  document.getElementById("categoryFilter").value="";
+  document.getElementById("statusFilter").value="";
+  document.getElementById("dateFrom").value="";
+  document.getElementById("dateTo").value="";
+  renderTable(rawRows);
+}
 
-      // Category filter
-      if(cat){
-        table.addFilter("category", "=", cat);
-      }
-      // Status filter
-      if(stat){
-        table.addFilter("status", "=", stat);
-      }
-      // Date range filter (on base 'date' of record)
-      if(df || dt){
-        table.addFilter(function(data){
-          if(!data.date_raw) return false;
-          const d = dayjs.tz(data.date_raw);
-          if(!d.isValid()) return false;
-          if(df && d.isBefore(df)) return false;
-          if(dt && d.isAfter(dt)) return false;
-          return true;
-        });
-      }
-    }
+function downloadCSV(){
+  const rows = Array.from(document.querySelectorAll("#auditTable tbody tr")).map(tr=> 
+    Array.from(tr.children).map(td=>td.innerText)
+  );
+  let csv = "Date,Category,Status,Audit Date & Time,Ac Timestamp\n";
+  rows.forEach(r=>{ csv += r.map(x=>`"${x}"`).join(",")+"\n"; });
+  const blob = new Blob([csv],{type:"text/csv"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "audit_data_"+Date.now()+".csv";
+  link.click();
+}
 
-    function clearFilters(){
-      $category.value = "";
-      $status.value = "";
-      $dateFrom.value = "";
-      $dateTo.value = "";
-      table.clearFilter(true);
-    }
+async function fetchData(){
+  showError("");
+  try{
+    const res = await fetch(API_URL);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const json = await res.json();
+    if(!json.success || !Array.isArray(json.data)) throw new Error("Invalid API Response");
+    rawRows = json.data;
+    renderTable(rawRows);
+    populateFilters(rawRows);
+    document.getElementById("lastUpdated").textContent = "Last updated: "+fmtDateTime(new Date().toISOString());
+  }catch(err){
+    showError("Failed to fetch data. "+err.message);
+    console.error(err);
+  }
+}
 
-    // ====== CSV DOWNLOAD ======
-    function downloadCSV(){
-      // rowRange:"active" downloads filtered rows only
-      table.download("csv", `audit_management_${dayjs().format("YYYYMMDD_HHmmss")}.csv`, {bom:true}, "active");
-    }
+function showError(msg){
+  const box = document.getElementById("errorBox");
+  if(!msg){ box.style.display="none"; box.textContent=""; }
+  else{ box.style.display="block"; box.textContent=msg; }
+}
 
-    // ====== POPULATE FILTER OPTIONS ======
-    function populateFilters(rows){
-      // Category options
-      const cats = Array.from(new Set(rows.map(r => r.category).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-      $category.innerHTML = `<option value="">All Categories</option>` + cats.map(c=>`<option value="${c}">${c}</option>`).join("");
+document.getElementById("refreshBtn").addEventListener("click", fetchData);
+document.getElementById("downloadBtn").addEventListener("click", downloadCSV);
+document.getElementById("applyFilters").addEventListener("click", applyFilters);
+document.getElementById("clearFilters").addEventListener("click", clearFilters);
 
-      // Status options
-      const stats = Array.from(new Set(rows.map(r => (r.status || "").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-      $status.innerHTML = `<option value="">All Statuses</option>` + stats.map(s=>`<option value="${s}">${s}</option>`).join("");
-    }
-
-    // ====== FETCH ======
-    async function fetchData(){
-      showError(""); // clear
-      try{
-        const res = await fetch(API_URL, { method:"GET" });
-        if(!res.ok){
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const json = await res.json();
-        if(!json || json.success !== true || !Array.isArray(json.data)){
-          throw new Error("Unexpected API shape");
-        }
-        rawRows = json.data;
-        tableRows = transformRows(rawRows);
-        table.setData(tableRows);
-        populateFilters(tableRows);
-        $lastUpdated.textContent = "Last updated: " + dayjs().format("DD-MMM-YY HH:mm:ss");
-      }catch(err){
-        showError("Failed to fetch data. " + (err?.message || ""));
-        console.error(err);
-      }
-    }
-
-    function showError(msg){
-      if(!msg){
-        $errorBox.style.display = "none";
-        $errorBox.textContent = "";
-      }else{
-        $errorBox.style.display = "block";
-        $errorBox.textContent = msg;
-      }
-    }
-
-    // ====== INIT ======
-    document.addEventListener("DOMContentLoaded", () => {
-      initTable();
-      fetchData();
-
-      $refresh.addEventListener("click", fetchData);
-      $download.addEventListener("click", downloadCSV);
-      $applyFilters.addEventListener("click", applyFilters);
-      $clearFilters.addEventListener("click", clearFilters);
-    });
-  </script>
+document.addEventListener("DOMContentLoaded", fetchData);
+</script>
 </body>
 </html>

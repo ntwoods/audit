@@ -1,262 +1,435 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
+  <title>Audit Management Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inventory Audit — Owner View</title>
 
-  <!-- Favicon -->
-  <link rel="icon" href="logo.png" type="image/png">
+  <!-- Tabulator (strong data grid with filtering + CSV download) -->
+  <link href="https://unpkg.com/tabulator-tables@5.6.2/dist/css/tabulator.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/tabulator-tables@5.6.2/dist/js/tabulator.min.js"></script>
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com" defer></script>
-  <script src="luxon.js" defer></script>  
-
-    <!-- Tabulator (table library) -->
-  <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
-  <script type="text/javascript" src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
-
-
-  <!-- flatpickr (date picker) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script>
+  <!-- Day.js for timezone-aware formatting (IST) -->
+  <script src="https://unpkg.com/dayjs@1.11.13/dayjs.min.js"></script>
+  <script src="https://unpkg.com/dayjs@1.11.13/plugin/utc.js"></script>
+  <script src="https://unpkg.com/dayjs@1.11.13/plugin/timezone.js"></script>
+  <script>
+    dayjs.extend(dayjs_plugin_utc);
+    dayjs.extend(dayjs_plugin_timezone);
+    dayjs.tz.setDefault("Asia/Kolkata");
+  </script>
 
   <style>
-    body { font-family: Inter, system-ui, sans-serif; background: #f9fafb; color: #111827; }
-    .status-pill { padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-    .status-noerror { background:#dcfce7; color:#065f46; }
-    .status-tally { background:#fee2e2; color:#991b1b; }
-    .btn { display:inline-flex; align-items:center; gap:.35rem; padding:.35rem .65rem; border-radius:.5rem; border:1px solid #e5e7eb; background:#fff; font-size:.8rem; transition: all .2s; }
-    .btn:hover { background:#f3f4f6; }
-    .toolbar { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(6px); background: rgba(255,255,255,.9); }
-    .loading { text-align:center; padding:2rem; color:#6b7280; }
+    :root{
+      --blue-50:#f5f9ff;
+      --blue-100:#e8f0ff;
+      --blue-200:#d6e4ff;
+      --blue-400:#5b8def;
+      --blue-600:#2f5fd7;
+      --blue-800:#1d3f96;
+      --text:#0b1b2b;
+      --muted:#4b5b70;
+      --white:#fff;
+      --shadow: 0 6px 24px rgba(26,60,114,0.08), 0 2px 8px rgba(26,60,114,0.08);
+      --radius: 14px;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+      background: linear-gradient(180deg,var(--blue-50), #ffffff 40%);
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:24px 16px 48px;
+    }
+
+    .header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:16px;
+      flex-wrap:wrap;
+    }
+    .title{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .logo{
+      width:42px;height:42px;border-radius:12px;
+      background: linear-gradient(135deg,var(--blue-600),var(--blue-400));
+      display:grid;place-items:center;color:#fff;font-weight:700;
+      box-shadow: var(--shadow);
+    }
+    h1{
+      font-size:22px;margin:0;color:var(--blue-800);
+      letter-spacing:.2px;
+    }
+    .sub{
+      margin:0;color:var(--muted);font-size:13px;
+    }
+
+    .panel{
+      background:var(--white);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:14px;
+      margin-bottom:16px;
+      border:1px solid var(--blue-100);
+    }
+
+    .filters{
+      display:grid;
+      grid-template-columns: repeat(6, minmax(120px,1fr));
+      gap:10px;
+    }
+    @media (max-width: 980px){
+      .filters{ grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px){
+      .filters{ grid-template-columns: 1fr; }
+    }
+
+    label{
+      font-size:12px;color:var(--muted);display:block;margin:4px 0 6px 2px;
+    }
+    select, input[type="date"]{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid var(--blue-200);
+      border-radius:10px;
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      transition:border-color .2s, box-shadow .2s;
+    }
+    select:focus, input[type="date"]:focus{
+      border-color:var(--blue-600);
+      box-shadow:0 0 0 3px rgba(47,95,215,0.15);
+    }
+
+    .btns{ display:flex; gap:10px; align-items:end; }
+    .btn{
+      appearance:none; border:0; padding:10px 14px; border-radius:10px;
+      font-weight:600; cursor:pointer;
+      background:var(--blue-600); color:#fff; box-shadow:var(--shadow);
+      transition: transform .06s ease, box-shadow .2s ease, background .2s ease;
+      white-space:nowrap;
+    }
+    .btn.secondary{ background:#fff; color:var(--blue-800); border:1px solid var(--blue-200); }
+    .btn.ghost{ background:transparent; color:var(--blue-800); border:1px dashed var(--blue-400); }
+    .btn:hover{ transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0); }
+
+    /* Table container */
+    .table-card{
+      background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+      border:1px solid var(--blue-100);
+    }
+
+    /* Tabulator theming */
+    .tabulator{
+      border:none;
+      border-radius:var(--radius);
+    }
+    .tabulator-header{
+      border-bottom:1px solid var(--blue-100);
+      background:linear-gradient(180deg,#f7faff 0%, #f0f5ff 100%);
+    }
+    .tabulator-col{
+      border-right:1px solid #eaf0ff;
+      color:#14325d; font-weight:600;
+    }
+    .tabulator-row{
+      border-bottom:1px solid #f1f4fb;
+    }
+    .tabulator-row.tabulator-selected{
+      background:#e8f0ff;
+    }
+    .badge{
+      display:inline-block; padding:4px 8px; border-radius:999px;
+      font-size:12px; font-weight:700;
+    }
+    .status-pending{ background:#fff5e6; color:#9a6b00; border:1px solid #ffe3b3; }
+    .status-verifyjournalentry{ background:#e6f7ff; color:#005a8e; border:1px solid #bfe7ff; }
+    .status-tallyadjustment{ background:#e8fff1; color:#116b3a; border:1px solid #c9f5db; }
+    .status-default{ background:#edf2ff; color:#2f5fd7; border:1px solid #dbe6ff; }
+
+    .muted{ color: var(--muted); font-size:12px; }
+    .foot{
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      margin-top:10px; color:var(--muted); font-size:12px;
+    }
+    .error{
+      background:#fff1f2; border:1px solid #fecdd3; color:#b91c1c;
+      padding:10px 12px; border-radius:10px; margin-top:10px;
+    }
   </style>
 </head>
-<body class="min-h-screen">
-  <!-- Header -->
-  <header class="toolbar border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">Inventory Audit — Owner View</h1>
-        <p class="text-sm text-slate-500">Audit data overview with filters, sorting & file access</p>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">
+        <div class="logo">AM</div>
+        <div>
+          <h1>Audit Management — Glance Dashboard</h1>
+          <p class="sub">IST times • Live filters • CSV export of filtered rows</p>
+        </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <span id="stat-total" class="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-sm">Total: 0</span>
-        <span id="stat-ok" class="px-3 py-1 rounded-lg bg-green-100 text-green-700 text-sm">No Error: 0</span>
-        <span id="stat-red" class="px-3 py-1 rounded-lg bg-rose-100 text-rose-700 text-sm">Tally Adj.: 0</span>
-      </div>
-    </div>
-  </header>
-
-  <!-- Filters -->
-  <section class="max-w-7xl mx-auto px-4 mt-4 mb-2">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">Date Quick Filter</label>
-        <select id="quickDate" class="w-full rounded-lg border-slate-300 text-sm">
-          <option value="all">All Dates</option>
-          <option value="today">Today</option>
-          <option value="yesterday">Yesterday</option>
-          <option value="thisWeek">This Week</option>
-          <option value="lastWeek">Last Week</option>
-          <option value="last10">Last 10 Days</option>
-          <option value="last20">Last 20 Days</option>
-          <option value="last30">Last 30 Days</option>
-          <option value="thisMonth">This Month</option>
-          <option value="range">Custom Range…</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">Custom Date Range</label>
-        <input id="dateRange" class="w-full rounded-lg border-slate-300 text-sm" placeholder="Select range" disabled>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">Category</label>
-        <select id="categoryFilter" class="w-full rounded-lg border-slate-300 text-sm">
-          <option value="">All Categories</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
-        <select id="statusFilter" class="w-full rounded-lg border-slate-300 text-sm">
-          <option value="">All Status</option>
-          <option value="noerror">No Error</option>
-          <option value="tallyadjustment">Tally Adjustment</option>
-        </select>
+      <div class="btns">
+        <button id="refreshBtn" class="btn secondary" title="Reload from API">Refresh</button>
+        <button id="downloadBtn" class="btn" title="Download filtered rows as CSV">Download CSV</button>
       </div>
     </div>
-    <div class="mt-3 flex flex-wrap gap-2">
-      <button id="btnReset" class="btn">Reset Filters</button>
-      <button id="btnRefresh" class="btn">Refresh Data</button>
-      <button id="btnDownloadCSV" class="btn">Download CSV</button>
+
+    <div class="panel">
+      <div class="filters">
+        <div>
+          <label for="categoryFilter">Category</label>
+          <select id="categoryFilter">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+        <div>
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter">
+            <option value="">All Statuses</option>
+          </select>
+        </div>
+        <div>
+          <label for="dateFrom">Date From (Base Date)</label>
+          <input type="date" id="dateFrom" />
+        </div>
+        <div>
+          <label for="dateTo">Date To (Base Date)</label>
+          <input type="date" id="dateTo" />
+        </div>
+        <div class="btns">
+          <button id="applyFilters" class="btn">Apply Filters</button>
+          <button id="clearFilters" class="btn ghost">Clear</button>
+        </div>
+      </div>
+      <div id="errorBox" class="error" style="display:none;"></div>
     </div>
-  </section>
 
-  <!-- Table -->
-  <main class="max-w-7xl mx-auto px-4 pb-12">
-    <div id="loading" class="loading">Loading data…</div>
-    <div id="table" class="hidden border border-slate-200 rounded-xl bg-white shadow-sm"></div>
-    <div id="emptyState" class="hidden mt-8 text-center text-slate-500">No records match the current filters.</div>
-    <div id="errorState" class="hidden mt-8 text-center text-rose-600 font-medium">Couldn’t load data. Please check the API.</div>
-  </main>
+    <div class="table-card">
+      <div id="auditTable"></div>
+      <div class="foot">
+        <span id="rowCount" class="muted">Rows: 0</span>
+        <span id="lastUpdated" class="muted">Last updated: —</span>
+      </div>
+    </div>
+  </div>
 
-  <!-- Dashboard Script -->
-  <script defer>
-    // ===== Date helpers =====
-    function parseISO(str){ return new Date(str); }
-    function formatDate(d){ if(isNaN(d)) return ""; return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }
-    function startOfToday(){ const d=new Date(); return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
-    function subDays(date,days){ const d=new Date(date); d.setDate(d.getDate()-days); return d; }
-    function startOfWeek(date,{weekStartsOn=1}={}){ const d=new Date(date); const day=(d.getDay()+7-weekStartsOn)%7; d.setDate(d.getDate()-day); return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
-    function endOfWeek(date,{weekStartsOn=1}={}){ const start=startOfWeek(date,{weekStartsOn}); return new Date(start.getFullYear(),start.getMonth(),start.getDate()+6,23,59,59); }
-    function startOfMonth(date){ return new Date(date.getFullYear(),date.getMonth(),1); }
-    function endOfMonth(date){ return new Date(date.getFullYear(),date.getMonth()+1,0,23,59,59); }
-    function isWithinInterval(d,{start,end}){ return d>=start && d<=end; }
-    function isSameDay(d1,d2){ return d1.toDateString()===d2.toDateString(); }
-
-    // ===== Globals =====
+  <script>
+    // ====== CONFIG ======
     const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=ownerview";
-    let rawData = [], table;
-    const els = {
-      table: document.getElementById('table'),
-      loading: document.getElementById('loading'),
-      empty: document.getElementById('emptyState'),
-      error: document.getElementById('errorState'),
-      statTotal: document.getElementById('stat-total'),
-      statOk: document.getElementById('stat-ok'),
-      statRed: document.getElementById('stat-red'),
-      quickDate: document.getElementById('quickDate'),
-      dateRange: document.getElementById('dateRange'),
-      cat: document.getElementById('categoryFilter'),
-      stat: document.getElementById('statusFilter'),
-      btnReset: document.getElementById('btnReset'),
-      btnRefresh: document.getElementById('btnRefresh'),
-      btnCSV: document.getElementById('btnDownloadCSV')
+
+    // ====== HELPERS ======
+    const fmtDate = (iso) => {
+      if(!iso) return "";
+      const d = dayjs.tz(iso);
+      if(!d.isValid()) return "";
+      return d.format("DD-MMM-YY"); // dd-MMM-yy
+    };
+    const fmtDateTime = (iso) => {
+      if(!iso) return "";
+      const d = dayjs.tz(iso);
+      if(!d.isValid()) return "";
+      return d.format("DD-MMM-YY HH:mm:ss"); // dd-MMM-yy HH:mm:ss
+    };
+    const normalizeStatusClass = (s) => {
+      if(!s) return "status-default";
+      const k = String(s).toLowerCase();
+      if(k.includes("pending")) return "status-pending";
+      if(k.includes("verify")) return "status-verifyjournalentry";
+      if(k.includes("tally")) return "status-tallyadjustment";
+      return "status-default";
     };
 
-    function safeInit(){
-      if (window.Tabulator) {
-        init(); // run your real init only when Tabulator exists
-      } else {
-        console.log("Waiting for Tabulator...");
-        setTimeout(safeInit, 50); // retry after 50ms
-      }
-    }
-    document.addEventListener("DOMContentLoaded", safeInit);
+    // ====== STATE ======
+    let table;
+    let rawRows = [];   // API raw
+    let tableRows = []; // transformed rows for Tabulator
 
-    async function init(){
-      await loadData();
-      buildCategoryFilter();
-      buildTable();
-      wireControls();
-      applyFilters();
-    }
+    // ====== UI Elements ======
+    const $category = document.getElementById("categoryFilter");
+    const $status = document.getElementById("statusFilter");
+    const $dateFrom = document.getElementById("dateFrom");
+    const $dateTo = document.getElementById("dateTo");
+    const $errorBox = document.getElementById("errorBox");
+    const $rowCount = document.getElementById("rowCount");
+    const $lastUpdated = document.getElementById("lastUpdated");
+    const $refresh = document.getElementById("refreshBtn");
+    const $download = document.getElementById("downloadBtn");
+    const $applyFilters = document.getElementById("applyFilters");
+    const $clearFilters = document.getElementById("clearFilters");
 
-    // ===== Load Data =====
-    async function loadData(){
-      els.loading.classList.remove('hidden');
-      els.table.classList.add('hidden');
-      els.error.classList.add('hidden');
-      try{
-        const res=await fetch(API_URL);
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json=await res.json();
-        rawData=(json?.data||[]).map(r=>({...r,_statusNorm:String(r.status||'').toLowerCase(),_dateObj:r.date?parseISO(r.date):null}));
-        updateStats(rawData);
-        els.loading.classList.add('hidden');
-        els.table.classList.remove('hidden');
-      }catch(e){
-        console.error(e);
-        els.loading.classList.add('hidden');
-        els.error.classList.remove('hidden');
-      }
-    }
-
-    function updateStats(arr){
-      els.statTotal.textContent=`Total: ${arr.length}`;
-      els.statOk.textContent=`No Error: ${arr.filter(x=>x._statusNorm==='noerror').length}`;
-      els.statRed.textContent=`Tally Adj.: ${arr.filter(x=>x._statusNorm==='tallyadjustment').length}`;
-    }
-
-    // ===== Filters =====
-    function buildCategoryFilter(){
-      const cats=[...new Set(rawData.map(r=>r.category).filter(Boolean))].sort();
-      els.cat.innerHTML=`<option value="">All Categories</option>`+cats.map(c=>`<option>${c}</option>`).join('');
-    }
-
-    function currentDateInterval(){
-      const now=new Date();
-      switch(els.quickDate.value){
-        case "today": return {start:startOfToday(),end:now};
-        case "yesterday": return {start:subDays(startOfToday(),1),end:startOfToday()};
-        case "thisWeek": return {start:startOfWeek(now,{weekStartsOn:1}),end:endOfWeek(now,{weekStartsOn:1})};
-        case "lastWeek": {const end=subDays(startOfWeek(now,{weekStartsOn:1}),1);return {start:startOfWeek(end,{weekStartsOn:1}),end};}
-        case "last10": return {start:subDays(startOfToday(),9),end:now};
-        case "last20": return {start:subDays(startOfToday(),19),end:now};
-        case "last30": return {start:subDays(startOfToday(),29),end:now};
-        case "thisMonth": return {start:startOfMonth(now),end:endOfMonth(now)};
-        case "range": {
-          const [start,end]=els.dateRange._flatpickr.selectedDates||[];
-          if(start&&end) return {start,end};
-          return null;
-        }
-        default: return null;
-      }
-    }
-
-    function applyFilters(){
-      if(!table) return;
-      const cat=els.cat.value.trim().toLowerCase();
-      const stat=els.stat.value.trim().toLowerCase();
-      const interval=currentDateInterval();
-      table.setFilter((d)=>{
-        if(cat && String(d.category||'').toLowerCase()!==cat) return false;
-        if(stat && String(d._statusNorm||'')!==stat) return false;
-        if(interval){const date=d._dateObj;if(!date) return false;if(!isWithinInterval(date,interval)) return false;}
-        return true;
-      });
-      els.empty.classList.toggle('hidden',table.getDataCount()>0);
-    }
-
-    // ===== Table =====
-    function buildTable(){
-      if(table) table.destroy();
-      table=new Tabulator("#table",{
-        data:rawData,
-        layout:"fitColumns",
-        height:"600px",
-        initialSort:[{column:"date",dir:"desc"}],
-        columns:[
-          {title:"Date",field:"date",sorter:"date",formatter:(c)=>formatDate(parseISO(c.getValue()))},
-          {title:"Category",field:"category"},
-          {title:"Audit ID",field:"audit_id"},
-          {title:"Status",field:"status",formatter:(c)=>{const v=(c.getValue()||'').toLowerCase();if(v==='noerror') return `<span class="status-pill status-noerror">No Error</span>`;if(v==='tallyadjustment') return `<span class="status-pill status-tally">Tally Adjustment</span>`;return v;}},
-          {title:"Audit Remark",field:"audit_remark"},
-          {title:"Audit File",field:"audit_file",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
-          {title:"Verification Remark",field:"verification_remark"},
-          {title:"Verification File",field:"verification_file",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
-          {title:"Journal Entry Remark",field:"journal_entry_remark"},
-          {title:"Journal Entry File",field:"journal_entry_file",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
-          {title:"Accounts Remark",field:"accountsremark"},
-          {title:"Accounts Correction File",field:"accountscorrectionfile",formatter:(c)=>c.getValue()?`<a class="btn" href="${c.getValue()}" target="_blank">Open</a>`:""},
+    // ====== TABLE SETUP ======
+    function initTable(){
+      table = new Tabulator("#auditTable", {
+        height: "600px",
+        layout: "fitColumns",
+        reactiveData: true,
+        placeholder: "No records found",
+        pagination: true,
+        paginationSize: 20,
+        paginationSizeSelector: [10,20,50,100],
+        columns: [
+          { title: "Date", field: "date_fmt", width: 120, headerHozAlign:"left", hozAlign:"left",
+            tooltip: (cell)=> cell.getRow().getData().date_raw || "",
+          },
+          { title: "Category", field: "category", headerHozAlign:"left", hozAlign:"left", minWidth:180 },
+          { title: "Status", field: "status", width:160, formatter: (cell)=>{
+              const v = cell.getValue() || "";
+              const cls = normalizeStatusClass(v);
+              return `<span class="badge ${cls}">${v || "-"}</span>`;
+            }
+          },
+          { title: "Audit Date & Time", field: "audit_dt", minWidth:180,
+            tooltip: (cell)=> cell.getRow().getData().audit_raw || "",
+          },
+          { title: "Ac Timestamp", field: "ac_ts", minWidth:180,
+            tooltip: (cell)=> cell.getRow().getData().ac_raw || "",
+          },
+          // Hidden but useful fields for downstream or debugging:
+          { title: "Audit ID", field: "audit_id", visible:false },
         ],
+        dataLoaded: updateCounts,
+        dataFiltered: updateCounts,
       });
     }
 
-    // ===== Controls =====
-    function wireControls(){
-      els.quickDate.addEventListener('change',()=>{
-        if(els.quickDate.value==="range"){els.dateRange.disabled=false;els.dateRange._flatpickr.open();}else{els.dateRange.disabled=true;els.dateRange._flatpickr.clear();}
-        applyFilters();
-      });
-      els.cat.addEventListener('change',applyFilters);
-      els.stat.addEventListener('change',applyFilters);
-      els.btnReset.addEventListener('click',()=>{els.quickDate.value="all";els.dateRange._flatpickr.clear();els.dateRange.disabled=true;els.cat.value="";els.stat.value="";applyFilters();});
-      els.btnRefresh.addEventListener('click',async()=>{await loadData();table.replaceData(rawData);buildCategoryFilter();applyFilters();});
-      els.btnCSV.addEventListener('click',()=>table.download("csv","audits.csv"));
-      // flatpickr init
-      els.dateRange._flatpickr=flatpickr(els.dateRange,{mode:"range",dateFormat:"d M Y",onChange:applyFilters});
+    function updateCounts(){
+      const count = table.getDataCount("active"); // filtered count
+      $rowCount.textContent = `Rows: ${count}`;
     }
+
+    // ====== DATA TRANSFORM ======
+    function transformRows(items){
+      return items.map(r => {
+        const dateFmt = fmtDate(r.date);
+        const auditFmt = r.audittimestamp ? fmtDateTime(r.audittimestamp) : "";
+        const acFmt = r.accountssettlementtimestamp ? fmtDateTime(r.accountssettlementtimestamp) : "";
+        return {
+          audit_id: r.audit_id || "",
+          category: r.category || "",
+          status: r.status || "",
+          date_fmt: dateFmt,
+          date_raw: r.date || "",
+          audit_dt: auditFmt,
+          audit_raw: r.audittimestamp || "",
+          ac_ts: acFmt,
+          ac_raw: r.accountssettlementtimestamp || "",
+        };
+      });
+    }
+
+    // ====== FILTERING LOGIC ======
+    function applyFilters(){
+      const cat = $category.value || "";
+      const stat = $status.value || "";
+      const df = $dateFrom.value ? dayjs.tz($dateFrom.value + "T00:00:00") : null;
+      const dt = $dateTo.value ? dayjs.tz($dateTo.value + "T23:59:59") : null;
+
+      // Clear existing filters first
+      table.clearFilter(true);
+
+      // Category filter
+      if(cat){
+        table.addFilter("category", "=", cat);
+      }
+      // Status filter
+      if(stat){
+        table.addFilter("status", "=", stat);
+      }
+      // Date range filter (on base 'date' of record)
+      if(df || dt){
+        table.addFilter(function(data){
+          if(!data.date_raw) return false;
+          const d = dayjs.tz(data.date_raw);
+          if(!d.isValid()) return false;
+          if(df && d.isBefore(df)) return false;
+          if(dt && d.isAfter(dt)) return false;
+          return true;
+        });
+      }
+    }
+
+    function clearFilters(){
+      $category.value = "";
+      $status.value = "";
+      $dateFrom.value = "";
+      $dateTo.value = "";
+      table.clearFilter(true);
+    }
+
+    // ====== CSV DOWNLOAD ======
+    function downloadCSV(){
+      // rowRange:"active" downloads filtered rows only
+      table.download("csv", `audit_management_${dayjs().format("YYYYMMDD_HHmmss")}.csv`, {bom:true}, "active");
+    }
+
+    // ====== POPULATE FILTER OPTIONS ======
+    function populateFilters(rows){
+      // Category options
+      const cats = Array.from(new Set(rows.map(r => r.category).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+      $category.innerHTML = `<option value="">All Categories</option>` + cats.map(c=>`<option value="${c}">${c}</option>`).join("");
+
+      // Status options
+      const stats = Array.from(new Set(rows.map(r => (r.status || "").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+      $status.innerHTML = `<option value="">All Statuses</option>` + stats.map(s=>`<option value="${s}">${s}</option>`).join("");
+    }
+
+    // ====== FETCH ======
+    async function fetchData(){
+      showError(""); // clear
+      try{
+        const res = await fetch(API_URL, { method:"GET" });
+        if(!res.ok){
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const json = await res.json();
+        if(!json || json.success !== true || !Array.isArray(json.data)){
+          throw new Error("Unexpected API shape");
+        }
+        rawRows = json.data;
+        tableRows = transformRows(rawRows);
+        table.setData(tableRows);
+        populateFilters(tableRows);
+        $lastUpdated.textContent = "Last updated: " + dayjs().format("DD-MMM-YY HH:mm:ss");
+      }catch(err){
+        showError("Failed to fetch data. " + (err?.message || ""));
+        console.error(err);
+      }
+    }
+
+    function showError(msg){
+      if(!msg){
+        $errorBox.style.display = "none";
+        $errorBox.textContent = "";
+      }else{
+        $errorBox.style.display = "block";
+        $errorBox.textContent = msg;
+      }
+    }
+
+    // ====== INIT ======
+    document.addEventListener("DOMContentLoaded", () => {
+      initTable();
+      fetchData();
+
+      $refresh.addEventListener("click", fetchData);
+      $download.addEventListener("click", downloadCSV);
+      $applyFilters.addEventListener("click", applyFilters);
+      $clearFilters.addEventListener("click", clearFilters);
+    });
   </script>
 </body>
 </html>

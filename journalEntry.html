@@ -67,6 +67,9 @@
       background: #084c9b;
       transform: translateY(-2px);
     }
+    .overdue {
+      background: #ffe6e6;
+    }
   </style>
 </head>
 <body>
@@ -86,7 +89,7 @@
           document.getElementById("cardsContainer").innerHTML = "<p>No verifyError records found.</p>";
         }
       } catch (err) {
-        console.error(err);
+        console.error("Fetch error:", err);
       }
     }
 
@@ -96,6 +99,7 @@
       data.forEach(item => {
         const card = document.createElement("div");
         card.className = "card";
+
         const deadlineId = `deadline-${item.audit_id}`;
         card.innerHTML = `
           <div class="category">${item.category}</div>
@@ -105,21 +109,31 @@
           <button class="btn" onclick="sendJournal('${item.audit_id}','${item.category}')">Journal Entry</button>
         `;
         container.appendChild(card);
+
         if (item.verificationTimestamp) {
-          startCountdown(item.verificationTimestamp, deadlineId);
+          setupCountdown(item.verificationTimestamp, deadlineId, card);
         }
       });
     }
 
     function formatDate(dateStr) {
       const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr; // fallback if parsing fails
       const options = { day: "2-digit", month: "short", year: "2-digit" };
       return d.toLocaleDateString("en-GB", options).replace(",", "");
     }
 
-    function startCountdown(verificationTimestamp, elementId) {
-      const deadline = new Date(verificationTimestamp);
-      deadline.setHours(19, 0, 0, 0); // set deadline to 19:00:00 same day
+    function setupCountdown(verificationTimestamp, elementId, cardElement) {
+      const baseDate = new Date(verificationTimestamp);
+      if (isNaN(baseDate.getTime())) {
+        document.getElementById(elementId).textContent = "Invalid date";
+        return;
+      }
+
+      // Set deadline to 19:00:00 of the same day
+      const deadline = new Date(baseDate);
+      deadline.setHours(19, 0, 0, 0);
+
       const el = document.getElementById(elementId);
 
       function updateCountdown() {
@@ -127,6 +141,7 @@
         const diff = deadline - now;
         if (diff <= 0) {
           el.textContent = "Overdue";
+          cardElement.classList.add("overdue");
           clearInterval(timer);
           return;
         }
@@ -136,7 +151,7 @@
         el.textContent = `⏳ ${hrs}h ${mins}m ${secs}s left`;
       }
 
-      updateCountdown(); // initial call
+      updateCountdown(); // initial run
       const timer = setInterval(updateCountdown, 1000);
     }
 

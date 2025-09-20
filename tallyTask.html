@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Tally Work Done</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root {
       --bg: #f8fbff;
@@ -39,7 +40,7 @@
       flex-direction: column;
       justify-content: space-between;
       width: 320px;
-      min-height: 180px;
+      min-height: 200px;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
     .card:hover {
@@ -55,6 +56,15 @@
       margin: 4px 0;
       font-size: 14px;
       color: var(--muted);
+    }
+    .countdown {
+      font-weight: 700;
+      color: red;
+      margin-top: 6px;
+      font-size: 15px;
+    }
+    .overdue {
+      background: #ffe6e6;
     }
     .btn {
       margin-top: 15px;
@@ -104,34 +114,64 @@
       }
 
       entries.forEach(entry => {
+        const verificationTS = entry.journalEntryVerificationTimestamp || entry.journalentryverificationtimestamp || entry.JournalEntryVerificationTimestamp;
+
         const card = document.createElement("div");
         card.className = "card";
+        const deadlineId = `deadline-${entry.audit_id}`;
+
         card.innerHTML = `
           <h3>${entry.category}</h3>
           <p><strong>Audit ID:</strong> ${entry.audit_id}</p>
           <p><strong>Date:</strong> ${formatDate(entry.date)}</p>
+          <div id="${deadlineId}" class="countdown">${verificationTS ? "Loading timer..." : "<span style='color:red'>No timestamp</span>"}</div>
           <button class="btn" onclick="sendTallyAdjustment('${entry.audit_id}','${entry.category}')">Work Done</button>
         `;
         container.appendChild(card);
+
+        if (verificationTS) startCountdown(document.getElementById(deadlineId), verificationTS, card);
       });
     }
 
     function formatDate(dateStr) {
       const d = new Date(dateStr);
-      return d.toLocaleDateString("en-GB", {
+      return isNaN(d) ? dateStr : d.toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "short",
         year: "2-digit"
       });
     }
 
-    async function sendTallyAdjustment(auditId, category, action) {
-      const payload = {
-        action: "tallyadjustment",
-        audit_id: auditId,
-        category: category
-      };
+    function startCountdown(el, ts, card) {
+      const parsed = new Date(ts);
+      if (isNaN(parsed)) {
+        el.textContent = "Invalid date";
+        return;
+      }
+      const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 19, 0, 0, 0);
 
+      function update() {
+        const now = new Date();
+        let diff = target - now;
+        if (diff <= 0) {
+          el.textContent = "Overdue";
+          card.classList.add("overdue");
+          clearInterval(timer);
+          return;
+        }
+        const hours = Math.floor(diff / (1000*60*60));
+        diff -= hours * 3600000;
+        const mins = Math.floor(diff / (1000*60));
+        diff -= mins * 60000;
+        const secs = Math.floor(diff / 1000);
+        el.textContent = `⏳ ${hours}h ${mins}m ${secs}s left`;
+      }
+      update();
+      const timer = setInterval(update, 1000);
+    }
+
+    async function sendTallyAdjustment(auditId, category) {
+      const payload = { action: "tallyadjustment", audit_id: auditId, category: category };
       try {
         await fetch(API_URL, {
           method: "POST",
@@ -139,9 +179,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        alert(`✅ ${action} sent successfully!`);
-
-        // Refresh page after 1 second
+        alert(`✅ tallyadjustment sent successfully!`);
         setTimeout(() => location.reload(), 1000);
         console.log("Tally Adjustment sent:", payload);
       } catch (err) {

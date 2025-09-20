@@ -45,6 +45,11 @@
       margin: 4px 0;
       color: #555;
     }
+    .countdown {
+      font-weight: 600;
+      color: red;
+      margin-top: 8px;
+    }
     .btn {
       display: inline-block;
       padding: 8px 16px;
@@ -91,13 +96,18 @@
       data.forEach(item => {
         const card = document.createElement("div");
         card.className = "card";
+        const deadlineId = `deadline-${item.audit_id}`;
         card.innerHTML = `
           <div class="category">${item.category}</div>
           <div class="audit-id">Audit ID: ${item.audit_id}</div>
           <p><b>Date:</b> ${formatDate(item.date)}</p>
+          <div id="${deadlineId}" class="countdown"></div>
           <button class="btn" onclick="sendJournal('${item.audit_id}','${item.category}')">Journal Entry</button>
         `;
         container.appendChild(card);
+        if (item.verificationTimestamp) {
+          startCountdown(item.verificationTimestamp, deadlineId);
+        }
       });
     }
 
@@ -105,6 +115,29 @@
       const d = new Date(dateStr);
       const options = { day: "2-digit", month: "short", year: "2-digit" };
       return d.toLocaleDateString("en-GB", options).replace(",", "");
+    }
+
+    function startCountdown(verificationTimestamp, elementId) {
+      const deadline = new Date(verificationTimestamp);
+      deadline.setHours(19, 0, 0, 0); // set deadline to 19:00:00 same day
+      const el = document.getElementById(elementId);
+
+      function updateCountdown() {
+        const now = new Date();
+        const diff = deadline - now;
+        if (diff <= 0) {
+          el.textContent = "Overdue";
+          clearInterval(timer);
+          return;
+        }
+        const hrs = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+        el.textContent = `⏳ ${hrs}h ${mins}m ${secs}s left`;
+      }
+
+      updateCountdown(); // initial call
+      const timer = setInterval(updateCountdown, 1000);
     }
 
     async function sendJournal(auditId, category) {
@@ -121,12 +154,8 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        alert(`✅ ${action} sent successfully!`);
-
-    // Refresh page after 1 second
-    setTimeout(() => location.reload(), 1000);        
-        console.log("Journal Entry sent:", payload);
-
+        alert(`✅ journalEntry sent successfully!`);
+        setTimeout(() => location.reload(), 1000);
       } catch (err) {
         console.error("Failed to send journal entry:", err);
       }

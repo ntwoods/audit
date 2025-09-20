@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Warehouse Manager Panel</title>
+  <style>
+    :root{
+      --bg: #f7fbff;
+      --card: #ffffff;
+      --blue-600:#2563eb;
+      --blue-700:#1d4ed8;
+      --blue-100:#dbeafe;
+      --blue-50:#eff6ff;
+      --text:#0f172a;
+      --muted:#475569;
+      --green:#16a34a;
+      --green-100:#dcfce7;
+      --red:#dc2626;
+      --red-100:#fee2e2;
+      --shadow: 0 10px 20px rgba(37,99,235,.08), 0 2px 6px rgba(15,23,42,.05);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: linear-gradient(180deg, var(--blue-50), var(--bg));
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .wrap{width:100%;max-width:860px;}
+    .header{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:12px;padding:16px 18px;background:var(--card);
+      border-radius: var(--radius);box-shadow: var(--shadow);
+      border:1px solid var(--blue-100);
+    }
+    .title{
+      display:flex;align-items:center;gap:12px;font-weight:800;
+      font-size:clamp(18px, 2.8vw, 24px);letter-spacing:.2px;color:var(--blue-700);
+    }
+    .title .dot{width:10px;height:10px;border-radius:50%;background:var(--blue-600);box-shadow:0 0 0 4px rgba(37,99,235,.15);}
+    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    button.icon{appearance:none;border:1px solid var(--blue-100);background:var(--card);
+      padding:10px 12px;border-radius:12px;cursor:pointer;
+      box-shadow: var(--shadow);font-weight:600;color:var(--blue-700);}
+    button.icon:hover{background:var(--blue-50)}
+    .timestamp{font-size:12px;color:var(--muted)}
+    .grid{margin-top:18px;display:grid;grid-template-columns: repeat(2, minmax(0,1fr));gap:16px;}
+    @media (max-width:640px){.grid{grid-template-columns:1fr;}}
+    .tile{
+      position:relative;background:var(--card);border:1px solid var(--blue-100);
+      border-radius: var(--radius);box-shadow: var(--shadow);
+      padding:20px 18px;display:flex;gap:14px;align-items:center;
+      justify-content:space-between;min-height:110px;overflow:hidden;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      cursor:pointer;
+    }
+    .tile:focus-visible{outline:3px solid var(--blue-600); outline-offset:3px}
+    .tile:hover{transform: translateY(-2px)}
+    .tile .left{display:flex; flex-direction:column; gap:8px; min-width:0;}
+    .tile .label{font-size: clamp(14px, 2.4vw, 16px);font-weight: 800;letter-spacing:.3px;color:var(--blue-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .tile .status{font-size: 13px; font-weight:700; padding:6px 10px; border-radius:999px;align-self:flex-start;
+      border:1px solid var(--blue-100);color:var(--muted);background: var(--blue-50);}
+    .count-badge{font-size: clamp(28px, 6vw, 40px);line-height:1;font-weight:900;color:var(--blue-700);display:flex;align-items:center;gap:8px;}
+    .suffix{font-size:13px;font-weight:700;color:var(--muted)}
+    .tile.success{border-color: var(--green-100);background: linear-gradient(160deg, #ffffff, var(--green-100));}
+    .tile.success .status{background:var(--green-100); color:var(--green); border-color:rgba(22,163,74,.25)}
+    .tile.success .count-badge{color:var(--green)}
+    .tile.danger{border-color: var(--red-100);background: linear-gradient(160deg, #ffffff, var(--red-100));}
+    .tile.danger .status{background:#fff; color:var(--red); border-color:rgba(220,38,38,.3)}
+    .tile.danger .count-badge{color:var(--red)}
+    .pulse::after{content:"";position:absolute; inset:-2px;border-radius:inherit;border:2px solid currentColor;
+      opacity:.35;animation: pulse 1.4s ease-out infinite;pointer-events:none;}
+    @keyframes pulse{0% { transform: scale(1); opacity:.35 }70% { transform: scale(1.04); opacity:0 }100% { transform: scale(1.04); opacity:0 }}
+    .hint{margin-top:10px;font-size:12px;color:var(--muted); text-align:center;}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="header">
+      <div class="title"><span class="dot" aria-hidden="true"></span>Warehouse Manager Panel</div>
+      <div class="controls">
+        <button class="icon" id="refreshBtn" type="button" title="Refresh counts">⟲ Refresh</button>
+        <div class="timestamp" id="lastUpdated">—</div>
+      </div>
+    </div>
+
+    <section class="grid" id="tiles">
+      <!-- VERIFY AUDIT -->
+      <article class="tile" id="tile-verify-audit" role="link" tabindex="0"
+        aria-label="Open Verify Audit"
+        data-href="https://ntwoods.github.io/audit/verifyAudit.html">
+        <div class="left">
+          <div class="label">VERIFY AUDIT</div>
+          <div class="status" id="status-verify-audit">Loading…</div>
+        </div>
+        <div class="count-badge" id="count-verify-audit">— <span class="suffix">pending</span></div>
+      </article>
+
+      <!-- JOURNAL ENTRY -->
+      <article class="tile" id="tile-journal" role="link" tabindex="0"
+        aria-label="Open Journal Entry"
+        data-href="https://ntwoods.github.io/audit/journalEntry.html">
+        <div class="left">
+          <div class="label">JOURNAL ENTRIES</div>
+          <div class="status" id="status-journal">Loading…</div>
+        </div>
+        <div class="count-badge" id="count-journal">— <span class="suffix">pending</span></div>
+      </article>
+    </section>
+
+    <div class="hint">Colors: Green = All Clear · Red (pulsing) = Pending items</div>
+  </main>
+
+  <script>
+    (function(){
+      const ENDPOINTS = {
+        verifyAudit: "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=error",
+        journal:     "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec?action=verifyerror"
+      };
+
+      const el = {
+        tileVerifyAudit: document.getElementById("tile-verify-audit"),
+        tileJournal: document.getElementById("tile-journal"),
+        countVerifyAudit: document.getElementById("count-verify-audit"),
+        countJournal: document.getElementById("count-journal"),
+        statusVerifyAudit: document.getElementById("status-verify-audit"),
+        statusJournal: document.getElementById("status-journal"),
+        refreshBtn: document.getElementById("refreshBtn"),
+        lastUpdated: document.getElementById("lastUpdated"),
+        container: document.getElementById("tiles")
+      };
+
+      el.container.addEventListener("click", onTileActivate);
+      el.container.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" || e.key === " "){
+          const a = e.target.closest(".tile");
+          if(a){ e.preventDefault(); openTile(a); }
+        }
+      });
+
+      function onTileActivate(e){
+        const a = e.target.closest(".tile");
+        if(!a) return;
+        openTile(a);
+      }
+      function openTile(tile){
+        const href = tile.getAttribute("data-href");
+        if(href) window.location.href = href;
+      }
+
+      el.refreshBtn.addEventListener("click", loadCounts);
+
+      async function loadCounts(){
+        setLoading(el.tileVerifyAudit, el.statusVerifyAudit, el.countVerifyAudit);
+        setLoading(el.tileJournal, el.statusJournal, el.countJournal);
+        try{
+          const [verifyData, journalData] = await Promise.all([
+            fetchData(ENDPOINTS.verifyAudit),
+            fetchData(ENDPOINTS.journal)
+          ]);
+
+          const verifyCount = deriveCount(verifyData, "verify");
+          const journalCount = deriveCount(journalData, "journal");
+
+          applyCount(el.tileVerifyAudit, el.statusVerifyAudit, el.countVerifyAudit, verifyCount);
+          applyCount(el.tileJournal, el.statusJournal, el.countJournal, journalCount);
+
+          el.lastUpdated.textContent = "Updated: " + new Date().toLocaleString();
+        }catch(err){
+          console.error("Failed to load counts:", err);
+          showError(el.tileVerifyAudit, el.statusVerifyAudit, el.countVerifyAudit);
+          showError(el.tileJournal, el.statusJournal, el.countJournal);
+          el.lastUpdated.textContent = "Update failed";
+        }
+      }
+
+      function setLoading(tile, statusEl, countEl){
+        tile.classList.remove("success","danger","pulse");
+        statusEl.textContent = "Loading…";
+        countEl.innerHTML = "— <span class='suffix'>pending</span>";
+      }
+      function showError(tile, statusEl, countEl){
+        tile.classList.remove("success","danger","pulse");
+        statusEl.textContent = "Could not fetch";
+        countEl.innerHTML = "—";
+      }
+      async function fetchData(url){
+        const u = new URL(url);
+        u.searchParams.set("_", Date.now().toString());
+        const res = await fetch(u.toString(), { method:"GET" });
+        if(!res.ok) throw new Error("HTTP " + res.status);
+        const json = await res.json();
+        if(!json || json.success !== true || !Array.isArray(json.data)) return { data: [] };
+        return json;
+      }
+      function deriveCount(payload){
+        const arr = (payload && payload.data) || [];
+        if(arr.length === 0) return 0;
+        return arr.length;
+      }
+      function applyCount(tile, statusEl, countEl, count){
+        if(Number(count) > 0){
+          tile.classList.remove("success");
+          tile.classList.add("danger","pulse");
+          statusEl.textContent = "Pending";
+          countEl.innerHTML = String(count) + " <span class='suffix'>pending</span>";
+        }else{
+          tile.classList.remove("danger","pulse");
+          tile.classList.add("success");
+          statusEl.textContent = "All Clear";
+          countEl.textContent = "0";
+        }
+      }
+      loadCounts();
+    })();
+  </script>
+</body>
+</html>

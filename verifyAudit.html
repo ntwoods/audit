@@ -77,7 +77,7 @@
     .countdown {
       font-weight: 700;
       margin-top: 10px;
-      color: var(--accent);
+      color: red;
     }
     .actions {
       display: flex;
@@ -188,7 +188,7 @@
       function startCountdown(el, dateStr){
         const parsed = new Date(dateStr);
         if(isNaN(parsed)) { el.textContent='Invalid date'; return; }
-        const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 18,0,0,0);
+        const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 19,0,0,0);
         function update(){
           const now = new Date();
           let d = target - now;

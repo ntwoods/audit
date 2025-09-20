@@ -93,7 +93,7 @@
       margin-top: 8px;
       font-weight: 700;
       font-size: 18px;
-      color: var(--accent);
+      color: red;
       text-shadow: 0 0 2px rgba(11, 118, 239, 0.2);
     }
 
@@ -252,7 +252,7 @@
           const now = new Date();
           let diff = target - now;
           if(diff <= 0){
-            el.textContent = 'Deadline reached';
+            el.textContent = 'Overdue';
             return;
           }
           const days = Math.floor(diff / (1000*60*60*24));

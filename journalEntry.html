@@ -74,102 +74,107 @@
   <h1>Journal Entry Portal</h1>
   <div id="cardsContainer"></div>
 
-  <script>
-    (function(){
-      const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec";
-      const container = document.getElementById("cardsContainer");
+<script>
+(function(){
+  const API_URL = "https://script.google.com/macros/s/AKfycbze820nXuy0s0RZNajlPzFq4AeyEaOhjp3IS_tqfi2RB7XKbzYvOi2nwXFUEUqtXh56/exec";
+  const container = document.getElementById("cardsContainer");
 
-      function fmtDateISOtoDisplay(isoDateStr){
-        const d = new Date(isoDateStr);
-        if (isNaN(d)) return isoDateStr;
-        const dd = String(d.getDate()).padStart(2,'0');
-        const mmm = d.toLocaleString('en-GB',{month:'short'});
-        const yy = String(d.getFullYear()).slice(-2);
-        return `${dd}-${mmm}-${yy}`;
+  function fmtDateISOtoDisplay(isoDateStr){
+    const d = new Date(isoDateStr);
+    if (isNaN(d)) return isoDateStr;
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mmm = d.toLocaleString('en-GB',{month:'short'});
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dd}-${mmm}-${yy}`;
+  }
+
+  function buildCards(data){
+    container.innerHTML = "";
+    data.forEach(item=>{
+      const verificationTS = item.verificationTimestamp || 
+                             item.verificationtimestamp || 
+                             item.verification_time || 
+                             item.VerificationTimestamp;  // check common variations
+
+      const card = document.createElement("div");
+      card.className = "card";
+      const deadlineId = `deadline-${item.audit_id}`;
+
+      card.innerHTML = `
+        <div class="category">${item.category}</div>
+        <div class="audit-id">Audit ID: ${item.audit_id}</div>
+        <div><b>Date:</b> ${fmtDateISOtoDisplay(item.date)}</div>
+        <div class="countdown" id="${deadlineId}">${verificationTS ? 'Loading timer...' : '<span style="color:red">No verification timestamp</span>'}</div>
+        <button class="btn" onclick="sendJournal('${item.audit_id}','${item.category}')">Journal Entry</button>
+      `;
+      container.appendChild(card);
+
+      if (verificationTS) {
+        startCountdown(document.getElementById(deadlineId), verificationTS, card);
       }
+    });
+  }
 
-      function buildCards(data){
-        container.innerHTML = "";
-        data.forEach(item=>{
-          const card = document.createElement("div");
-          card.className = "card";
-          const deadlineId = `deadline-${item.audit_id}`;
+  function startCountdown(el, ts, card){
+    const parsed = new Date(ts);
+    if (isNaN(parsed)) { el.textContent = "Invalid date"; return; }
+    const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 19, 0, 0, 0);
 
-          card.innerHTML = `
-            <div class="category">${item.category}</div>
-            <div class="audit-id">Audit ID: ${item.audit_id}</div>
-            <div><b>Date:</b> ${fmtDateISOtoDisplay(item.date)}</div>
-            <div class="countdown" id="${deadlineId}">Loading timer...</div>
-            <button class="btn" onclick="sendJournal('${item.audit_id}','${item.category}')">Journal Entry</button>
-          `;
-          container.appendChild(card);
-
-          if (item.verificationTimestamp) {
-            startCountdown(document.getElementById(deadlineId), item.verificationTimestamp, card);
-          } else {
-            document.getElementById(deadlineId).textContent = "No verification timestamp";
-          }
-        });
+    function update(){
+      const now = new Date();
+      let diff = target - now;
+      if (diff <= 0){
+        el.textContent = "Overdue";
+        card.classList.add("overdue");
+        clearInterval(timer);
+        return;
       }
+      const hours = Math.floor(diff / (1000*60*60));
+      diff -= hours*3600000;
+      const mins = Math.floor(diff / (1000*60));
+      diff -= mins*60000;
+      const secs = Math.floor(diff / 1000);
+      el.textContent = `⏳ ${hours}h ${mins}m ${secs}s left`;
+    }
+    update();
+    const timer = setInterval(update, 1000);
+  }
 
-      function startCountdown(el, ts, card){
-        const parsed = new Date(ts);
-        if (isNaN(parsed)) { el.textContent = "Invalid date"; return; }
-        const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 19, 0, 0, 0);
-
-        function update(){
-          const now = new Date();
-          let diff = target - now;
-          if (diff <= 0){
-            el.textContent = "Overdue";
-            card.classList.add("overdue");
-            clearInterval(timer);
-            return;
-          }
-          const hours = Math.floor(diff / (1000*60*60));
-          diff -= hours*3600000;
-          const mins = Math.floor(diff / (1000*60));
-          diff -= mins*60000;
-          const secs = Math.floor(diff / 1000);
-          el.textContent = `⏳ ${hours}h ${mins}m ${secs}s left`;
-        }
-        update();
-        const timer = setInterval(update, 1000);
+  async function fetchData(){
+    try {
+      const res = await fetch(API_URL + "?action=verifyError");
+      const json = await res.json();
+      console.log("API Data:", json); // 👈 helps verify field names in console
+      if (json.success && Array.isArray(json.data) && json.data.length>0){
+        buildCards(json.data);
+      } else {
+        container.innerHTML = "<p>No verifyError records found.</p>";
       }
+    } catch (err){
+      console.error("Failed to fetch:", err);
+      container.innerHTML = "<p>Error fetching data.</p>";
+    }
+  }
 
-      async function fetchData(){
-        try {
-          const res = await fetch(API_URL + "?action=verifyError");
-          const json = await res.json();
-          if (json.success && Array.isArray(json.data) && json.data.length>0){
-            buildCards(json.data);
-          } else {
-            container.innerHTML = "<p>No verifyError records found.</p>";
-          }
-        } catch (err){
-          console.error("Failed to fetch:", err);
-          container.innerHTML = "<p>Error fetching data.</p>";
-        }
-      }
+  window.sendJournal = async function(auditId, category){
+    const payload = { action: "journalEntry", audit_id: auditId, category: category };
+    try {
+      await fetch(API_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      alert(`✅ journalEntry sent successfully!`);
+      setTimeout(()=>location.reload(), 1000);
+    } catch (err){
+      console.error("Failed to send journal entry:", err);
+    }
+  }
 
-      window.sendJournal = async function(auditId, category){
-        const payload = { action: "journalEntry", audit_id: auditId, category: category };
-        try {
-          await fetch(API_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-          alert(`✅ journalEntry sent successfully!`);
-          setTimeout(()=>location.reload(), 1000);
-        } catch (err){
-          console.error("Failed to send journal entry:", err);
-        }
-      }
+  fetchData();
+})();
+</script>
 
-      fetchData();
-    })();
-  </script>
 </body>
 </html>

@@ -124,10 +124,12 @@
           <p><strong>Audit ID:</strong> ${entry.audit_id}</p>
           <p><strong>Date:</strong> ${formatDate(entry.date)}</p>
           <div id="${deadlineId}" class="countdown">${journalTS ? "Loading timer..." : "<span style='color:red'>No journalEntryTimestamp</span>"}</div>
-          <button class="btn" onclick="verifyJournalEntry('${entry.audit_id}','${entry.category}')">Verify Journal Entry</button>
+          <div class="editable"><button class="btn" onclick="verifyJournalEntry('${entry.audit_id}','${entry.category}')">Verify Journal Entry</button></div>
         `;
         container.appendChild(card);
-
+      if (typeof setReadOnlyMode === "function") {
+        setReadOnlyMode();        
+      }
         if (journalTS) {
           startCountdown(document.getElementById(deadlineId), journalTS, card);
         }
@@ -188,6 +190,10 @@
     }
 
     fetchJournalEntries();
+      if (typeof setReadOnlyMode === "function") {
+        setReadOnlyMode();        
+      }
   </script>
+  <script src="https://ntwoods.github.io/ordertodispatch/js/viewOnly.js"></script>  
 </body>
 </html>

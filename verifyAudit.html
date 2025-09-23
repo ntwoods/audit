@@ -178,6 +178,9 @@
               card.querySelectorAll('button').forEach(b => {
                 b.addEventListener('click', ()=> sendAction(card, b.dataset.action));
               });
+              if (typeof setReadOnlyMode === "function") {
+                setReadOnlyMode();
+              }              
               startCountdown(card.querySelector('.countdown'), dateStr);
             });
           })

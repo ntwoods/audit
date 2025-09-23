@@ -105,7 +105,7 @@
         <div class="audit-id">Audit ID: ${item.audit_id}</div>
         <div><b>Date:</b> ${fmtDateISOtoDisplay(item.date)}</div>
         <div class="countdown" id="${deadlineId}">${verificationTS ? 'Loading timer...' : '<span style="color:red">No verification timestamp</span>'}</div>
-        <button class="btn" onclick="sendJournal('${item.audit_id}','${item.category}')">Journal Entry</button>
+        <div class="editable"><button class="btn" onclick="sendJournal('${item.audit_id}','${item.category}')">Journal Entry</button></div>
       `;
       container.appendChild(card);
 
@@ -171,10 +171,12 @@
       console.error("Failed to send journal entry:", err);
     }
   }
-
   fetchData();
+  if (typeof setReadOnlyMode === "function") {
+  setReadOnlyMode();
+}
 })();
 </script>
-
+<script src="https://ntwoods.github.io/ordertodispatch/js/viewOnly.js"></script>
 </body>
 </html>

@@ -220,9 +220,11 @@
               </div>
             </div>
             <div class="countdown" data-target="${dateStr || ''}">Loading timer...</div>
+            <div class="editable">
             <div style="display:flex;gap:8px;justify-content:flex-end">
               <button class="err" data-action="error">Error Found</button>
               <button class="noerr" data-action="noError">Error Not Found</button>
+            </div>
             </div>
           `;
           card.dataset.auditId = auditId || '';

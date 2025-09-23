@@ -125,10 +125,12 @@
           <p><strong>Audit ID:</strong> ${entry.audit_id}</p>
           <p><strong>Date:</strong> ${formatDate(entry.date)}</p>
           <div id="${deadlineId}" class="countdown">${verificationTS ? "Loading timer..." : "<span style='color:red'>No timestamp</span>"}</div>
-          <button class="btn" onclick="sendTallyAdjustment('${entry.audit_id}','${entry.category}')">Work Done</button>
+          <div class="editable"><button class="btn" onclick="sendTallyAdjustment('${entry.audit_id}','${entry.category}')">Work Done</button></div>
         `;
         container.appendChild(card);
-
+        if (typeof setReadOnlyMode === "function") {
+          setReadOnlyMode();        
+        }        
         if (verificationTS) startCountdown(document.getElementById(deadlineId), verificationTS, card);
       });
     }
@@ -188,6 +190,10 @@
     }
 
     fetchVerifiedEntries();
+      if (typeof setReadOnlyMode === "function") {
+        setReadOnlyMode();        
+      }    
   </script>
+  <script src="https://ntwoods.github.io/ordertodispatch/js/viewOnly.js"></script>
 </body>
 </html>

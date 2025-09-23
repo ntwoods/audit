@@ -230,6 +230,9 @@
 
       refresh.addEventListener('click', fetchErrors);
       fetchErrors();
+                if (typeof setReadOnlyMode === "function") {
+            setReadOnlyMode();
+          }
     })();
   </script>
   <script src="https://ntwoods.github.io/ordertodispatch/js/viewOnly.js"></script>

@@ -149,6 +149,9 @@
       console.log("API Data:", json); // 👈 helps verify field names in console
       if (json.success && Array.isArray(json.data) && json.data.length>0){
         buildCards(json.data);
+      if (typeof setReadOnlyMode === "function") {
+      setReadOnlyMode();
+    }   
       } else {
         container.innerHTML = "<p>No verifyError records found.</p>";
       }
@@ -174,9 +177,6 @@
     }
   }
   fetchData();
-  if (typeof setReadOnlyMode === "function") {
-  setReadOnlyMode();
-}
 })();
 </script>
 <script src="https://ntwoods.github.io/ordertodispatch/js/viewOnly.js"></script>

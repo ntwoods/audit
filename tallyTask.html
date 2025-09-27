@@ -144,33 +144,34 @@
       });
     }
 
-    function startCountdown(el, ts, card) {
-      const parsed = new Date(ts);
-      if (isNaN(parsed)) {
-        el.textContent = "Invalid date";
-        return;
-      }
-      const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 19, 0, 0, 0);
+function startCountdown(el, ts, card) {
+  const parsed = new Date(ts);
+  if (isNaN(parsed)) {
+    el.textContent = "Invalid date";
+    return;
+  }
+  const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 19, 0, 0, 0);
 
-      function update() {
-        const now = new Date();
-        let diff = target - now;
-        if (diff <= 0) {
-          el.textContent = "Overdue";
-          card.classList.add("overdue");
-          clearInterval(timer);
-          return;
-        }
-        const hours = Math.floor(diff / (1000*60*60));
-        diff -= hours * 3600000;
-        const mins = Math.floor(diff / (1000*60));
-        diff -= mins * 60000;
-        const secs = Math.floor(diff / 1000);
-        el.textContent = `⏳ ${hours}h ${mins}m ${secs}s left`;
-      }
-      update();
-      const timer = setInterval(update, 1000);
+  let timer;   // ✅ Declare first
+  function update() {
+    const now = new Date();
+    let diff = target - now;
+    if (diff <= 0) {
+      el.textContent = "Overdue";
+      card.classList.add("overdue");
+      clearInterval(timer);  // ✅ Now timer exists
+      return;
     }
+    const hours = Math.floor(diff / (1000*60*60));
+    diff -= hours * 3600000;
+    const mins = Math.floor(diff / (1000*60));
+    diff -= mins * 60000;
+    const secs = Math.floor(diff / 1000);
+    el.textContent = `⏳ ${hours}h ${mins}m ${secs}s left`;
+  }
+  update();
+  timer = setInterval(update, 1000);  // ✅ Assign later
+}
 
     async function sendTallyAdjustment(auditId, category) {
       const payload = { action: "tallyadjustment", audit_id: auditId, category: category };

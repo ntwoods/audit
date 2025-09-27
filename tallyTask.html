@@ -150,7 +150,7 @@ function startCountdown(el, ts, card) {
     el.textContent = "Invalid date";
     return;
   }
-  const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 19, 0, 0, 0);
+  const target = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate() + 1, 19, 0, 0, 0);
 
   let timer;   // ✅ Declare first
   function update() {

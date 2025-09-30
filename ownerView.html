@@ -66,10 +66,12 @@
     thead { background:linear-gradient(180deg,#f7faff 0%, #f0f5ff 100%); }
     th, td { padding:8px 12px; border-bottom:1px solid #eaf0ff; text-align:left; font-size:14px; }
     .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;}
-    .status-pending{background:#fff5e6;color:#9a6b00;border:1px solid #ffe3b3;}
-    .status-verifyjournalentry{background:#e6f7ff;color:#005a8e;border:1px solid #bfe7ff;}
-    .status-tallyadjustment{background:#e8fff1;color:#116b3a;border:1px solid #c9f5db;}
-    .status-default{background:#edf2ff;color:#2f5fd7;border:1px solid #dbe6ff;}
+
+    /* === New status-based row colors === */
+    .row-pending { background:#ffe6e6; }          /* Red */
+    .row-green { background:#e6ffe6; }            /* Green */
+    .row-yellow { background:#fffacc; }           /* Yellow */
+
     .foot{display:flex;justify-content:space-between;padding:8px 12px;font-size:12px;color:var(--muted);}
     .error{background:#fff1f2;border:1px solid #fecdd3;color:#b91c1c;padding:10px 12px;border-radius:10px;margin-top:10px;}
   </style>
@@ -150,22 +152,24 @@ function fmtDateTime(iso){
   return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"2-digit"})+" "+
          d.toLocaleTimeString("en-GB",{hour12:false});
 }
-function normalizeStatusClass(s){
-  if(!s) return "status-default";
-  const k = s.toLowerCase();
-  if(k.includes("pending")) return "status-pending";
-  if(k.includes("verify")) return "status-verifyjournalentry";
-  if(k.includes("tally")) return "status-tallyadjustment";
-  return "status-default";
+
+/* Decide row color class based on status */
+function getRowClass(status){
+  if(!status) return "";
+  const k = status.toLowerCase();
+  if(k.includes("pending")) return "row-pending";
+  if(["noerror","verifynoerror","tallyadjustment"].includes(k)) return "row-green";
+  if(["error","verifyerror","journalentry","verifyjournalentry"].includes(k)) return "row-yellow";
+  return "";
 }
 
 function renderTable(rows){
   const tbody = document.querySelector("#auditTable tbody");
   tbody.innerHTML = rows.map(r=>{
-    return `<tr>
+    return `<tr class="${getRowClass(r.status)}">
       <td>${fmtDate(r.date)}</td>
       <td>${r.category||""}</td>
-      <td><span class="badge ${normalizeStatusClass(r.status)}">${r.status||"-"}</span></td>
+      <td><span class="badge">${r.status||"-"}</span></td>
       <td>${fmtDateTime(r.audittimestamp)}</td>
       <td>${fmtDateTime(r.accountssettlementtimestamp)}</td>
     </tr>`;
